@@ -124,7 +124,10 @@ export default class MyBookPlugin extends Plugin {
                     this.app.workspace.setActiveLeaf(target, { focus: true })
                   }
                 } else {
-                  this.app.workspace.setActiveLeaf(keep, { focus: true })
+                  // Focus thừa (đã đúng leaf) sẽ bắn file-open lặp → lag nền
+                  if (keep !== this.app.workspace.activeLeaf) {
+                    this.app.workspace.setActiveLeaf(keep, { focus: true })
+                  }
                 }
                 return
               }
@@ -301,7 +304,9 @@ export default class MyBookPlugin extends Plugin {
         for (const l of existing) {
           if (l !== keep) l.detach()
         }
-        this.app.workspace.setActiveLeaf(keep, { focus: true })
+        if (keep !== this.app.workspace.activeLeaf) {
+          this.app.workspace.setActiveLeaf(keep, { focus: true })
+        }
         return
       }
       const leaf = this.app.workspace.getLeaf(true)
@@ -326,6 +331,9 @@ class MyBookView extends ItemView {
   plugin: MyBookPlugin
   root: Root | null = null
   currentFilePath: string | null = null
+  /** Path đang tải dở — chặn double-load (setState của Obsidian + loadPath tay
+      gọi chồng nhau; file 11MB mà parse+render 2 lần là lag nhân đôi) */
+  loadingPath: string | null = null
 
   constructor(leaf: WorkspaceLeaf, plugin: MyBookPlugin) {
     super(leaf)
@@ -412,12 +420,14 @@ class MyBookView extends ItemView {
     }, 0)
   }
 
-  /** Tải + render file vở (bỏ qua nếu đang hiển thị đúng file đó) */
+  /** Tải + render file vở (bỏ qua nếu đang hiển thị / đang tải đúng file đó) */
   async loadPath(path: string): Promise<void> {
     if (path === this.currentFilePath && this.root) return
+    if (this.loadingPath === path) return
     this.root?.unmount()
     this.root = null
     this.currentFilePath = path
+    this.loadingPath = path
     // Nhớ thư mục để lần tạo note sau rơi đúng chỗ
     const slash = path.lastIndexOf('/')
     lastMyBookDir = slash >= 0 ? path.substring(0, slash) : ''
@@ -433,6 +443,7 @@ class MyBookView extends ItemView {
     const file = this.app.vault.getAbstractFileByPath(path)
     if (!(file instanceof TFile)) {
       loadingEl.setText(`Không tìm thấy file ${path}`)
+      if (this.loadingPath === path) this.loadingPath = null
       return
     }
 
@@ -441,10 +452,15 @@ class MyBookView extends ItemView {
       raw = await this.app.vault.read(file)
     } catch {
       loadingEl.setText(`Không đọc được file ${file.path}`)
+      if (this.loadingPath === path) this.loadingPath = null
       return
     }
+    // Trong lúc đọc file, user đã mở sang file khác → bỏ, tránh render đè
+    if (this.loadingPath !== path) return
 
     const parsed = importNotebookFromMarkdown(raw)
+    // Parse xong mà đã chuyển file khác → bỏ, tránh render đè (file 11MB parse lâu)
+    if (this.loadingPath !== path) return
     const initialMeta = parsed
       ? parsed.meta
       : getEmptyNotebook(file.basename, 'grid').meta
@@ -454,6 +470,7 @@ class MyBookView extends ItemView {
 
     container.empty()
     this.root = createRoot(container as HTMLElement)
+    if (this.loadingPath === path) this.loadingPath = null
     try {
       this.root.render(
         React.createElement(
@@ -509,5 +526,6 @@ class MyBookView extends ItemView {
     this.root?.unmount()
     this.root = null
     this.currentFilePath = null
+    this.loadingPath = null
   }
 }
