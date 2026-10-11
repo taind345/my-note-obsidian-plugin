@@ -237,13 +237,31 @@ npx tauri build                   # → src-tauri/target/release/bundle/{deb,app
 
 ```
 src/
-  App.tsx                 # state trung tâm + render single/split + shortcuts
-  App.css                 # TOÀN BỘ css (~5800 dòng)
-  components/             # 22 component (vở, editor, sidebar, modal, toolbar...)
+  main.tsx                # entry (StrictMode + App + index.css + katex css)
+  App.css                 # entry CSS duy nhất (@import styles/01–13 theo đúng cascade cũ)
+  styles/01–13-*.css      # CSS tách từ file 5800 dòng (tokens/header/workspace/textbox/
+                          # markdown/canvas-navigator/export-sidebar/modals-tabs/editors/
+                          # stroke-settings/split-quickopen/reading-live-simple/frame-images)
+  app/App.tsx             # orchestrator: tabs/split/shortcuts/autosave (đã bóc hooks/components)
+  app/hooks/useVault.ts   # vault path/items/refresh/flatten/index Tauri
+  app/components/MynoteWorkspace.tsx  # render vở (HeaderToolbar + NotebookPage + Navigator)
+  app/lib/page-view.ts    # getVisiblePages (spread anchor chẵn / vertical / single)
+  features/notebook/      # NotebookPage · PageCanvas · NotebookTextBox · PageImageLayer ·
+                          # ExcalidrawPageCanvas · SplitMynotePane + hooks/useNotebookHistory
+  features/markdown/      # PureMarkdownEditor · LivePreviewEditor · SimpleEditor · CodeEditor ·
+                          # toolbar/UnifiedToolbar + toolbar/ObsidianMarkdownToolbar
+  features/vault/         # ObsidianSidebar
+  features/workspace/     # TabBar · QuickOpenModal (+fuzzyScore) · SplitPicker · NewFileLinkModal
+  shared/types/notebook.ts# mọi model dữ liệu (§4)
+  shared/lib/             # debounce · lineSnap · fonts · tauriFs · markdown · htmlToMarkdown ·
+                          # selection · smoothing · imagePaste · shortcuts · tools-config
+  shared/ui/              # HeaderToolbar · PageNavigator · SettingsModal · ThemeDoodles ·
+                          # ExportPdfModal · ColorSwatches · WidthPicker (dùng chung app+plugin)
   services/               # storage (IDB) · vaultService · markdownFile · pdfExport
-  utils/                  # markdown · htmlToMarkdown · tauriFs · fonts · imagePaste
-                          # selection · smoothing · debounce · lineSnap
-  types/notebook.ts       # mọi model dữ liệu (§4)
+vite/plugin-local-fs.ts  # plugin /api/fs cho `npm run dev` (tách từ vite.config.ts)
+```
+Import tuyệt đối `@/...` → `src/...` (vite alias + tsconfig paths);
+mỗi feature có `index.ts` barrel để thêm component mới không sửa import cũ.
 src-tauri/                # tauri.conf.json · capabilities · icons · main.rs
 public/doodles/           # asset theme pastel · public/fonts (Cascadia, Virgil)
 demo/theme1/              # ảnh mẫu + asset gốc của designer (không ship app)

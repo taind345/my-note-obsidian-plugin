@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { HistoryEntry, PageData } from '@/shared/types/notebook'
 
 export const MAX_HISTORY = 50
@@ -30,7 +30,9 @@ export function useNotebookHistory(
   const [canRedo, setCanRedo] = useState(false)
   const { onDirty } = options
   const onDirtyRef = useRef(onDirty)
-  onDirtyRef.current = onDirty
+  useEffect(() => {
+    onDirtyRef.current = onDirty
+  }, [onDirty])
 
   const pushHistory = useCallback(
     (pageId: string, pageData: PageData) => {

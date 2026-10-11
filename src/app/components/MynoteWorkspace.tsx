@@ -1,7 +1,6 @@
 import type { RefObject } from 'react'
 import type {
   DrawingElement,
-  NotebookMetadata,
   PageData,
   PageImageData,
   PaperPattern,
@@ -39,8 +38,6 @@ interface MynoteWorkspaceProps {
   flipPhase: 'closing' | 'opening' | null
   zoom: number
   isPastel: boolean
-  meta: NotebookMetadata | null
-  activeTabTitle: string
   selectedTextBoxIds: string[]
   selectedDrawingIds: string[]
   selectedImageIds: string[]
@@ -95,100 +92,170 @@ interface MynoteWorkspaceProps {
  * presentational thuần túy, không giữ state (dễ test, dễ bổ sung view mode).
  * Split view ép `forceVertical` để cuộn dọc 1 trang cho gọn.
  */
-export function MynoteWorkspace(p: MynoteWorkspaceProps) {
-  const vm: ViewSpreadMode = p.forceVertical ? 'single-vertical' : p.viewMode
-  const spreadPages = getVisiblePages(vm, p.pages, p.currentPageIndex)
+export function MynoteWorkspace({
+  forceVertical,
+  viewMode,
+  pages,
+  currentPageIndex,
+  activeTool,
+  strokeColor,
+  strokeWidth,
+  paperPattern,
+  flipAnimation,
+  fontFamily,
+  linePitch,
+  canUndo,
+  canRedo,
+  autosaveStatus,
+  hasSelectedElement,
+  isToolLocked,
+  handDrawnStyle,
+  isFlipping,
+  flipDirection,
+  flipPhase,
+  zoom,
+  isPastel,
+  selectedTextBoxIds,
+  selectedDrawingIds,
+  selectedImageIds,
+  workspaceRef,
+  onSelectTool,
+  onToggleToolLock,
+  onToggleHandDrawnStyle,
+  onChangeStrokeColor,
+  onChangeStrokeWidth,
+  onChangePaperPattern,
+  onChangeViewMode,
+  onToggleFlipAnimation,
+  onOpenSettings,
+  onChangeFontFamily,
+  onUndo,
+  onRedo,
+  onAddPage,
+  onOpenExportModal,
+  onNewNotebook,
+  onExportMarkdown,
+  onImportMarkdown,
+  onDeselectAll,
+  onSelectTextBox,
+  onSelectTextBoxes,
+  onSelectDrawing,
+  onSelectDrawings,
+  onUpdateTextBox,
+  onDeleteTextBox,
+  onDuplicateTextBox,
+  onAddTextBox,
+  onAddDrawingElement,
+  onUpdateDrawingElement,
+  onRemoveDrawingElement,
+  onReorderDrawing,
+  onSelectImages,
+  onAddImage,
+  onUpdateImage,
+  onRemoveImage,
+  onDuplicateImage,
+  onReorderImage,
+  onAutoSwitchToSelect,
+  onNavigateLink,
+  onNavigatePage,
+  onDeleteCurrentPage,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+}: MynoteWorkspaceProps) {
+  const vm: ViewSpreadMode = forceVertical ? 'single-vertical' : viewMode
+  const spreadPages = getVisiblePages(vm, pages, currentPageIndex)
   return (
     <div className="mynote-workspace-wrapper">
       <HeaderToolbar
-        activeTool={p.activeTool}
-        strokeColor={p.strokeColor}
-        strokeWidth={p.strokeWidth}
-        paperPattern={p.paperPattern}
-        viewMode={p.viewMode}
-        flipAnimation={p.flipAnimation}
-        fontFamily={p.fontFamily}
-        canUndo={p.canUndo}
-        canRedo={p.canRedo}
-        autosaveStatus={p.autosaveStatus}
-        hasSelectedElement={p.hasSelectedElement}
-        isToolLocked={p.isToolLocked}
-        handDrawnStyle={p.handDrawnStyle}
-        onSelectTool={p.onSelectTool}
-        onToggleToolLock={p.onToggleToolLock}
-        onToggleHandDrawnStyle={p.onToggleHandDrawnStyle}
-        onChangeStrokeColor={p.onChangeStrokeColor}
-        onChangeStrokeWidth={p.onChangeStrokeWidth}
-        onChangePaperPattern={p.onChangePaperPattern}
-        onChangeViewMode={p.onChangeViewMode}
-        onToggleFlipAnimation={p.onToggleFlipAnimation}
-        onOpenSettings={p.onOpenSettings}
-        onChangeFontFamily={p.onChangeFontFamily}
-        onUndo={p.onUndo}
-        onRedo={p.onRedo}
-        onAddPage={p.onAddPage}
-        onOpenExportModal={p.onOpenExportModal}
-        onNewNotebook={p.onNewNotebook}
-        onExportMarkdown={p.onExportMarkdown}
-        onImportMarkdown={p.onImportMarkdown}
+        activeTool={activeTool}
+        strokeColor={strokeColor}
+        strokeWidth={strokeWidth}
+        paperPattern={paperPattern}
+        viewMode={viewMode}
+        flipAnimation={flipAnimation}
+        fontFamily={fontFamily}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        autosaveStatus={autosaveStatus}
+        hasSelectedElement={hasSelectedElement}
+        isToolLocked={isToolLocked}
+        handDrawnStyle={handDrawnStyle}
+        onSelectTool={onSelectTool}
+        onToggleToolLock={onToggleToolLock}
+        onToggleHandDrawnStyle={onToggleHandDrawnStyle}
+        onChangeStrokeColor={onChangeStrokeColor}
+        onChangeStrokeWidth={onChangeStrokeWidth}
+        onChangePaperPattern={onChangePaperPattern}
+        onChangeViewMode={onChangeViewMode}
+        onToggleFlipAnimation={onToggleFlipAnimation}
+        onOpenSettings={onOpenSettings}
+        onChangeFontFamily={onChangeFontFamily}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        onAddPage={onAddPage}
+        onOpenExportModal={onOpenExportModal}
+        onNewNotebook={onNewNotebook}
+        onExportMarkdown={onExportMarkdown}
+        onImportMarkdown={onImportMarkdown}
       />
 
       <main
-        ref={p.workspaceRef}
+        ref={workspaceRef}
         className="notebook-workspace"
-        style={{ transform: `scale(${p.zoom})`, transformOrigin: 'top center' }}
+        style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
         onClick={(e) => {
           const target = e.target as HTMLElement
           if (
             target.classList.contains('notebook-workspace') ||
             target.classList.contains('notebook-desk')
           ) {
-            p.onDeselectAll()
+            onDeselectAll()
           }
         }}
       >
         <div
           className={`notebook-desk ${
             vm === 'spread' ? 'spread-view' : vm === 'single-vertical' ? 'vertical-view' : 'single-view'
-          } ${!p.forceVertical && p.isFlipping ? `flipping-${p.flipDirection} flip-phase-${p.flipPhase}` : ''}`}
+          } ${!forceVertical && isFlipping ? `flipping-${flipDirection} flip-phase-${flipPhase}` : ''}`}
         >
           {spreadPages.map(({ page, isSpineLeft, isSpineRight }) => (
             <NotebookPage
               key={page.id}
               page={page}
-              activeTool={p.activeTool}
-              strokeColor={p.strokeColor}
-              strokeWidth={p.strokeWidth}
-              linePitch={p.linePitch}
-              selectedTextBoxIds={p.selectedTextBoxIds}
-              selectedElementIds={p.selectedDrawingIds}
-              fontFamily={p.fontFamily}
+              activeTool={activeTool}
+              strokeColor={strokeColor}
+              strokeWidth={strokeWidth}
+              linePitch={linePitch}
+              selectedTextBoxIds={selectedTextBoxIds}
+              selectedElementIds={selectedDrawingIds}
+              fontFamily={fontFamily}
               isSpineLeft={isSpineLeft}
               isSpineRight={isSpineRight}
-              isToolLocked={p.isToolLocked}
-              handDrawnStyle={p.handDrawnStyle}
-              canvasPixelScale={p.zoom}
-              onSelectTextBox={p.onSelectTextBox}
-              onSelectTextBoxes={p.onSelectTextBoxes}
-              onSelectElement={p.onSelectDrawing}
-              onSelectElements={p.onSelectDrawings}
-              onUpdateTextBox={p.onUpdateTextBox}
-              onDeleteTextBox={p.onDeleteTextBox}
-              onDuplicateTextBox={p.onDuplicateTextBox}
-              onAddTextBox={p.onAddTextBox}
-              onAddDrawingElement={p.onAddDrawingElement}
-              onUpdateDrawingElement={p.onUpdateDrawingElement}
-              onRemoveDrawingElement={p.onRemoveDrawingElement}
-              onReorderDrawing={p.onReorderDrawing}
-              selectedImageIds={p.selectedImageIds}
-              onSelectImages={p.onSelectImages}
-              onAddImage={p.onAddImage}
-              onUpdateImage={p.onUpdateImage}
-              onRemoveImage={p.onRemoveImage}
-              onDuplicateImage={p.onDuplicateImage}
-              onReorderImage={p.onReorderImage}
-              onAutoSwitchToSelect={p.onAutoSwitchToSelect}
-              onNavigateLink={p.onNavigateLink}
+              isToolLocked={isToolLocked}
+              handDrawnStyle={handDrawnStyle}
+              canvasPixelScale={zoom}
+              onSelectTextBox={onSelectTextBox}
+              onSelectTextBoxes={onSelectTextBoxes}
+              onSelectElement={onSelectDrawing}
+              onSelectElements={onSelectDrawings}
+              onUpdateTextBox={onUpdateTextBox}
+              onDeleteTextBox={onDeleteTextBox}
+              onDuplicateTextBox={onDuplicateTextBox}
+              onAddTextBox={onAddTextBox}
+              onAddDrawingElement={onAddDrawingElement}
+              onUpdateDrawingElement={onUpdateDrawingElement}
+              onRemoveDrawingElement={onRemoveDrawingElement}
+              onReorderDrawing={onReorderDrawing}
+              selectedImageIds={selectedImageIds}
+              onSelectImages={onSelectImages}
+              onAddImage={onAddImage}
+              onUpdateImage={onUpdateImage}
+              onRemoveImage={onRemoveImage}
+              onDuplicateImage={onDuplicateImage}
+              onReorderImage={onReorderImage}
+              onAutoSwitchToSelect={onAutoSwitchToSelect}
+              onNavigateLink={onNavigateLink}
             />
           ))}
           {vm === 'spread' && spreadPages.length === 1 && !spreadPages[0].isSpineLeft && (
@@ -207,19 +274,19 @@ export function MynoteWorkspace(p: MynoteWorkspaceProps) {
         </div>
       </main>
 
-      {p.isPastel && <ThemeDoodles />}
+      {isPastel && <ThemeDoodles />}
 
       <PageNavigator
-        pages={p.pages}
-        currentPageIndex={p.currentPageIndex}
+        pages={pages}
+        currentPageIndex={currentPageIndex}
         viewMode={vm}
-        zoom={p.zoom}
-        onNavigatePage={p.onNavigatePage}
-        onAddPage={p.onAddPage}
-        onDeleteCurrentPage={p.onDeleteCurrentPage}
-        onZoomIn={p.onZoomIn}
-        onZoomOut={p.onZoomOut}
-        onZoomReset={p.onZoomReset}
+        zoom={zoom}
+        onNavigatePage={onNavigatePage}
+        onAddPage={onAddPage}
+        onDeleteCurrentPage={onDeleteCurrentPage}
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        onZoomReset={onZoomReset}
       />
     </div>
   )

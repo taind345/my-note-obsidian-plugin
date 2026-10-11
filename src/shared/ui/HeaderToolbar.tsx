@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import type { ToolType, PaperPattern, ViewSpreadMode } from '@/shared/types/notebook'
+import { ColorSwatches } from './ColorSwatches'
+import { WidthPicker } from './WidthPicker'
 import {
   MousePointer,
   Pen,
@@ -59,23 +61,8 @@ interface HeaderToolbarProps {
   onOpenSettings?: () => void
 }
 
-const COLORS = [
-  { label: 'Ink Black', value: '#1e293b' },
-  { label: 'Royal Blue', value: '#2563eb' },
-  { label: 'Crimson Red', value: '#dc2626' },
-  { label: 'Forest Green', value: '#16a34a' },
-  { label: 'Purple Violet', value: '#7c3aed' },
-  { label: 'Highlighter Yellow', value: '#eab308' },
-]
-
-const STROKE_WIDTHS = [
-  { label: '1', value: 1, title: 'Rất mảnh (1px)' },
-  { label: '2', value: 2, title: 'Siêu mảnh (2px)' },
-  { label: '3', value: 3, title: 'Mảnh (3px)' },
-  { label: '4', value: 5, title: 'Vừa (5px)' },
-  { label: '5', value: 8, title: 'Đậm (8px)' },
-  { label: '6', value: 12, title: 'Siêu đậm (12px)' },
-]
+// Màu/nét dùng chung ở shared/lib/tools-config (STROKE_COLORS/STROKE_WIDTHS)
+// + components ColorSwatches/WidthPicker — thêm màu mới chỉ sửa 1 chỗ.
 
 export const HeaderToolbar = memo(function HeaderToolbar({
   activeTool,
@@ -356,43 +343,11 @@ export const HeaderToolbar = memo(function HeaderToolbar({
 
       {/* RIGHT SECTION: Styles, Hand-drawn Toggle, View Modes, Pagination, Undo/Redo & Actions */}
       <div className="header-right">
-        {/* Stroke Colors & 5 Width Levels & Pen Style */}
+        {/* Stroke Colors & Width Levels (dùng chung tools-config) */}
         {isDrawingOrShape && (
           <div className="stroke-controls-pill">
-            <div className="color-swatches mini">
-              {COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  className={`color-dot ${strokeColor === c.value ? 'selected' : ''}`}
-                  style={{ backgroundColor: c.value }}
-                  onClick={() => onChangeStrokeColor(c.value)}
-                  title={c.label}
-                />
-              ))}
-            </div>
-
-            {/* 5-Level Stroke Width Selector */}
-            <div className="stroke-level-selector" title="Stroke Width (5 nấc độ to)">
-              {STROKE_WIDTHS.map((sw) => (
-                <button
-                  key={sw.value}
-                  type="button"
-                  className={`stroke-level-btn ${strokeWidth === sw.value ? 'active' : ''}`}
-                  onClick={() => onChangeStrokeWidth(sw.value)}
-                  title={sw.title}
-                >
-                  <span
-                    className="level-dot"
-                    style={{
-                      width: `${Math.min(10, Math.max(3, sw.value))}px`,
-                      height: `${Math.min(10, Math.max(3, sw.value))}px`,
-                    }}
-                  />
-                  <span className="level-num">{sw.label}</span>
-                </button>
-              ))}
-            </div>
+            <ColorSwatches value={strokeColor} onChange={onChangeStrokeColor} />
+            <WidthPicker value={strokeWidth} onChange={onChangeStrokeWidth} />
           </div>
         )}
 

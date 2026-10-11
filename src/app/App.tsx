@@ -1453,8 +1453,6 @@ export default function App() {
       flipPhase={flipPhase}
       zoom={zoom}
       isPastel={appTheme === 'pastel'}
-      meta={meta}
-      activeTabTitle={activeTab?.title || 'notebook'}
       selectedTextBoxIds={selectedTextBoxIds}
       selectedDrawingIds={selectedDrawingIds}
       selectedImageIds={selectedImageIds}

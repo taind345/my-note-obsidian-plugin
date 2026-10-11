@@ -310,7 +310,6 @@ class MyBookView extends ItemView {
   /** Tải + render file vở (bỏ qua nếu đang hiển thị đúng file đó) */
   async loadPath(path: string): Promise<void> {
     if (path === this.currentFilePath && this.root) return
-    console.log('[MyBook] loadPath:', path)
     this.root?.unmount()
     this.root = null
     this.currentFilePath = path
@@ -341,7 +340,6 @@ class MyBookView extends ItemView {
     }
 
     const parsed = importNotebookFromMarkdown(raw)
-    console.log('[MyBook] parsed:', parsed ? `${parsed.pages.length} pages` : 'fresh notebook')
     const initialMeta = parsed
       ? parsed.meta
       : getEmptyNotebook(file.basename, 'grid').meta

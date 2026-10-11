@@ -4,6 +4,9 @@ import {
   Maximize,
 } from 'lucide-react'
 import type { ToolType } from '@/shared/types/notebook'
+import type { WidthDef } from '@/shared/lib/tools-config'
+import { ColorSwatches } from '@/shared/ui/ColorSwatches'
+import { WidthPicker } from '@/shared/ui/WidthPicker'
 
 interface MiniToolbarProps {
   activeTool: ToolType
@@ -26,8 +29,8 @@ interface MiniToolbarProps {
   onAddPage: () => void
 }
 
-const COLORS = ['#1e293b', '#2563eb', '#dc2626', '#16a34a', '#7c3aed', '#eab308']
-const WIDTHS = [1, 2, 4, 6, 10]
+/** Nấc nét riêng của plugin (giữ nguyên UX cũ) — map sang WidthDef để dùng chung WidthPicker */
+const WIDTHS: WidthDef[] = [1, 2, 4, 6, 10].map((w) => ({ label: `${w}`, value: w, title: `${w}px` }))
 
 function toolBtn(
   active: boolean,
@@ -64,34 +67,8 @@ export function MiniToolbar(p: MiniToolbarProps) {
       {toolBtn(p.activeTool === 'text', 'Hộp chữ (8)', () => p.onSelectTool('text'), <Type size={15} />)}
       {toolBtn(p.activeTool === 'eraser', 'Tẩy (9)', () => p.onSelectTool('eraser'), <Eraser size={15} />)}
       <div className="tool-divider" />
-      <span className="color-swatches mini">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`color-dot ${p.strokeColor === c ? 'selected' : ''}`}
-            style={{ backgroundColor: c }}
-            title={c}
-            onClick={() => p.onChangeColor(c)}
-          />
-        ))}
-      </span>
-      <span className="stroke-level-selector">
-        {WIDTHS.map((w) => (
-          <button
-            key={w}
-            type="button"
-            className={`stroke-level-btn ${p.strokeWidth === w ? 'active' : ''}`}
-            title={`${w}px`}
-            onClick={() => p.onChangeWidth(w)}
-          >
-            <span
-              className="level-dot"
-              style={{ width: `${Math.min(10, Math.max(3, w))}px`, height: `${Math.min(10, Math.max(3, w))}px` }}
-            />
-          </button>
-        ))}
-      </span>
+      <ColorSwatches value={p.strokeColor} onChange={p.onChangeColor} />
+      <WidthPicker value={p.strokeWidth} onChange={p.onChangeWidth} compact widths={WIDTHS} />
       <div className="tool-divider" />
       <button type="button" className="undo-redo-btn" title="Hoàn tác (Ctrl+Z)" disabled={!p.canUndo} onClick={p.onUndo}>
         <RotateCcw size={13} />

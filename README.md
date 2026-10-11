@@ -94,7 +94,7 @@ src-tauri/
                        # asset-protocol scope $HOME/** (để ảnh vault hiện trong app)
   capabilities/default.json  # quyền FS giới hạn $HOME/** (đọc/ghi/xóa/đổi tên/tạo)
   src/{main,lib}.rs    # plugin fs + dialog (+ log khi dev)
-src/utils/tauriFs.ts   # isTauri() + index file vault + resolve ảnh sang asset:// URL
+src/shared/lib/tauriFs.ts   # isTauri() + index file vault + resolve ảnh sang asset:// URL
 src/services/vaultService.ts  # tự chọn backend: plugin-fs (app) hay /api/fs (web)
 ```
 
