@@ -77,8 +77,11 @@ export default class MyBookPlugin extends Plugin {
 
     this.registerView(MYBOOK_VIEW_TYPE, (leaf) => new MyBookView(leaf, this))
 
-    // Nhận file .mynote.md bằng view vở (thay vì markdown thường)
-    this.registerExtensions([MYBOOK_EXTS[0]], MYBOOK_VIEW_TYPE)
+    // Nhận file .mynote.md bằng view vở (thay vì markdown thường).
+    // Đăng ký CẢ 2 dạng như plugin Excalidraw ("excalidraw", không phải
+    // "excalidraw.md"): khớp kiểu nào thì mở thẳng view vở, không còn tab
+    // markdown trung gian render JSON thô (nguồn gốc của lag + chớp tab).
+    this.registerExtensions(['mynote', MYBOOK_EXTS[0]], MYBOOK_VIEW_TYPE)
 
     // Fallback chắc ăn: Obsidian coi .mynote.md là md thường (đuôi sau dấu chấm
     // cuối), nên khi file vở bị mở bằng view markdown thì tự chuyển sang view vở.
