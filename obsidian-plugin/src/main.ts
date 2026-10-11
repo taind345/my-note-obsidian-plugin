@@ -280,29 +280,17 @@ export default class MyBookPlugin extends Plugin {
       for (const l of notebookLeaves) {
         if (l !== keep) l.detach()
       }
-      const target = mdLeaves[0]
-      if (target && target !== keep) {
-        // Sidebar mở thừa tab markdown cùng file: đổi tab đó thành vở tại chỗ
-        // (giữ tab, focus ở yên). Chỉ dọn leaf vở cũ khi đã convert thành công.
-        await target.setViewState({
-          type: MYBOOK_VIEW_TYPE,
-          active: true,
-          state: { file: file.path },
-        })
-        const v = target.view
-        if (v instanceof MyBookView) {
-          await v.loadPath(file.path)
-          keep.detach()
-          this.app.workspace.setActiveLeaf(target, { focus: true })
-        }
-        return true
+      // Đã mở rồi thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) — KHÔNG
+      // convert/load lại: click sidebar không bao giờ reload file. Tab markdown
+      // thừa (vừa mở ra, chưa có state người dùng) dọn luôn.
+      for (const l of mdLeaves) {
+        if (l !== keep) l.detach()
       }
       // Focus thừa (đã đúng leaf) sẽ bắn file-open lặp → lag nền
       if (keep !== this.app.workspace.activeLeaf) {
         this.app.workspace.setActiveLeaf(keep, { focus: true })
       }
-      // Chưa thấy tab markdown thừa: có thể Obsidian gắn trễ vài frame → poll tiếp
-      return mdLeaves.length > 0
+      return true
     }
 
     // Chưa có vở: đổi leaf markdown đang hiển thị file sang view vở tại chỗ.
