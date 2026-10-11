@@ -60,6 +60,113 @@ type ResizeHandleType =
 
 const HANDLE_SIZE = 8
 
+/**
+ * Vẽ 1 element lên context tĩnh — NGUỒN SỰ THẬT DUY NHẤT cho pixels (full redraw
+ * lúc mount/undo + commit tăng dần lúc thả bút + export đều qua đây, seed + routine
+ * giống hệt nên 3 nơi ra cùng 1 hình, kiểu ShapeCache của Excalidraw).
+ */
+function drawStaticElement(
+  ctx: CanvasRenderingContext2D,
+  rc: any,
+  elem: DrawingElement,
+  handDrawnStyle: boolean
+): void {
+  ctx.save()
+
+  const isDashed = elem.strokeStyle === 'dashed'
+  const dashOpt = isDashed ? [8, 6] : undefined
+  const roughOpts: any = {
+    stroke: elem.color,
+    strokeWidth: elem.strokeWidth,
+    roughness: handDrawnStyle ? (elem.roughness ?? 1.0) : 0,
+    bowing: handDrawnStyle ? 0.8 : 0,
+    strokeLineDash: dashOpt,
+    disableMultiStroke: !handDrawnStyle,
+    seed: elem.seed || getElementSeed(elem.id),
+  }
+
+  if (elem.fillColor && elem.fillColor !== 'transparent') {
+    roughOpts.fill = elem.fillColor
+    roughOpts.fillStyle = 'solid'
+  }
+
+  if (elem.type === 'highlighter') {
+    ctx.globalAlpha = elem.opacity || 0.35
+    ctx.strokeStyle = elem.color
+    ctx.lineWidth = elem.strokeWidth * 3
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    drawSmoothStroke(ctx, elem.points)
+  } else if (elem.type === 'pen') {
+    ctx.globalAlpha = elem.opacity || 1.0
+    ctx.strokeStyle = elem.color
+    ctx.lineWidth = elem.strokeWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    drawSmoothStroke(ctx, elem.points)
+  } else if (elem.type === 'line' && elem.points.length >= 2) {
+    const p0 = elem.points[0]
+    const p1 = elem.points[elem.points.length - 1]
+    rc.line(p0.x, p0.y, p1.x, p1.y, roughOpts)
+  } else if (elem.type === 'arrow' && elem.points.length >= 2) {
+    const p0 = elem.points[0]
+    const isCurved = elem.isCurved !== false && elem.points.length >= 3
+    const pmid = isCurved
+      ? elem.points[1]
+      : {
+          x: (p0.x + elem.points[elem.points.length - 1].x) / 2,
+          y: (p0.y + elem.points[elem.points.length - 1].y) / 2,
+        }
+    const p1 = elem.points[elem.points.length - 1]
+
+    if (isCurved) {
+      rc.curve([[p0.x, p0.y], [pmid.x, pmid.y], [p1.x, p1.y]], roughOpts)
+      const angle = Math.atan2(p1.y - pmid.y, p1.x - pmid.x)
+      const arrowLen = 14 + elem.strokeWidth * 1.5
+      const a1x = p1.x - arrowLen * Math.cos(angle - Math.PI / 6)
+      const a1y = p1.y - arrowLen * Math.sin(angle - Math.PI / 6)
+      const a2x = p1.x - arrowLen * Math.cos(angle + Math.PI / 6)
+      const a2y = p1.y - arrowLen * Math.sin(angle + Math.PI / 6)
+      rc.line(p1.x, p1.y, a1x, a1y, roughOpts)
+      rc.line(p1.x, p1.y, a2x, a2y, roughOpts)
+    } else {
+      rc.line(p0.x, p0.y, p1.x, p1.y, roughOpts)
+      const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x)
+      const arrowLen = 14 + elem.strokeWidth * 1.5
+      const a1x = p1.x - arrowLen * Math.cos(angle - Math.PI / 6)
+      const a1y = p1.y - arrowLen * Math.sin(angle - Math.PI / 6)
+      const a2x = p1.x - arrowLen * Math.cos(angle + Math.PI / 6)
+      const a2y = p1.y - arrowLen * Math.sin(angle + Math.PI / 6)
+      rc.line(p1.x, p1.y, a1x, a1y, roughOpts)
+      rc.line(p1.x, p1.y, a2x, a2y, roughOpts)
+    }
+  } else if (
+    elem.type === 'rect' &&
+    elem.x !== undefined &&
+    elem.y !== undefined &&
+    elem.width &&
+    elem.height
+  ) {
+    const rx = elem.width < 0 ? elem.x + elem.width : elem.x
+    const ry = elem.height < 0 ? elem.y + elem.height : elem.y
+    const rw = Math.abs(elem.width)
+    const rh = Math.abs(elem.height)
+    rc.rectangle(rx, ry, rw, rh, roughOpts)
+  } else if (
+    elem.type === 'circle' &&
+    elem.x !== undefined &&
+    elem.y !== undefined &&
+    elem.width &&
+    elem.height
+  ) {
+    const cx = elem.x + elem.width / 2
+    const cy = elem.y + elem.height / 2
+    rc.ellipse(cx, cy, Math.abs(elem.width), Math.abs(elem.height), roughOpts)
+  }
+
+  ctx.restore()
+}
+
 export function PageCanvas({
   pageId,
   activeTool,
@@ -187,17 +294,19 @@ export function PageCanvas({
   // vẽ + cùng seed rough), zoom to vẫn nét. Xem lib/canvasResolution.
   const canvasBacking = canvasBackingScale(canvasPixelScale)
 
-  // Chuẩn bị context: reset transform, xóa full, scale theo backing thực tế
+  // Chuẩn bị context: reset transform, (tùy chọn) xóa full, scale theo backing.
+  // clear=false cho đường commit tăng dần (giữ bitmap cũ, vẽ thêm 1 nét).
   const setupCtx = (
     canvas: HTMLCanvasElement | null,
-    backing?: number
+    backing?: number,
+    clear: boolean = true
   ): CanvasRenderingContext2D | null => {
     if (!canvas) return null
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     const s = backing ?? canvas.width / PAGE_WIDTH
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    if (clear) ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.setTransform(s, 0, 0, s, 0, 0)
     return ctx
   }
@@ -211,100 +320,7 @@ export function PageCanvas({
     const rc = rough.canvas(canvas)
 
     for (const elem of elements) {
-      ctx.save()
-
-      const isDashed = elem.strokeStyle === 'dashed'
-      const dashOpt = isDashed ? [8, 6] : undefined
-      const roughOpts: any = {
-        stroke: elem.color,
-        strokeWidth: elem.strokeWidth,
-        roughness: handDrawnStyle ? (elem.roughness ?? 1.0) : 0,
-        bowing: handDrawnStyle ? 0.8 : 0,
-        strokeLineDash: dashOpt,
-        disableMultiStroke: !handDrawnStyle,
-        seed: elem.seed || getElementSeed(elem.id),
-      }
-
-      if (elem.fillColor && elem.fillColor !== 'transparent') {
-        roughOpts.fill = elem.fillColor
-        roughOpts.fillStyle = 'solid'
-      }
-
-      if (elem.type === 'highlighter') {
-        ctx.globalAlpha = elem.opacity || 0.35
-        ctx.strokeStyle = elem.color
-        ctx.lineWidth = elem.strokeWidth * 3
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-        drawSmoothStroke(ctx, elem.points)
-      } else if (elem.type === 'pen') {
-        ctx.globalAlpha = elem.opacity || 1.0
-        ctx.strokeStyle = elem.color
-        ctx.lineWidth = elem.strokeWidth
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-        drawSmoothStroke(ctx, elem.points)
-      } else if (elem.type === 'line' && elem.points.length >= 2) {
-        const p0 = elem.points[0]
-        const p1 = elem.points[elem.points.length - 1]
-        rc.line(p0.x, p0.y, p1.x, p1.y, roughOpts)
-      } else if (elem.type === 'arrow' && elem.points.length >= 2) {
-        const p0 = elem.points[0]
-        const isCurved = elem.isCurved !== false && elem.points.length >= 3
-        const pmid = isCurved
-          ? elem.points[1]
-          : {
-              x: (p0.x + elem.points[elem.points.length - 1].x) / 2,
-              y: (p0.y + elem.points[elem.points.length - 1].y) / 2,
-            }
-        const p1 = elem.points[elem.points.length - 1]
-
-        if (isCurved) {
-          rc.curve([[p0.x, p0.y], [pmid.x, pmid.y], [p1.x, p1.y]], roughOpts)
-          const angle = Math.atan2(p1.y - pmid.y, p1.x - pmid.x)
-          const arrowLen = 14 + elem.strokeWidth * 1.5
-          const a1x = p1.x - arrowLen * Math.cos(angle - Math.PI / 6)
-          const a1y = p1.y - arrowLen * Math.sin(angle - Math.PI / 6)
-          const a2x = p1.x - arrowLen * Math.cos(angle + Math.PI / 6)
-          const a2y = p1.y - arrowLen * Math.sin(angle + Math.PI / 6)
-          rc.line(p1.x, p1.y, a1x, a1y, roughOpts)
-          rc.line(p1.x, p1.y, a2x, a2y, roughOpts)
-        } else {
-          rc.line(p0.x, p0.y, p1.x, p1.y, roughOpts)
-          const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x)
-          const arrowLen = 14 + elem.strokeWidth * 1.5
-          const a1x = p1.x - arrowLen * Math.cos(angle - Math.PI / 6)
-          const a1y = p1.y - arrowLen * Math.sin(angle - Math.PI / 6)
-          const a2x = p1.x - arrowLen * Math.cos(angle + Math.PI / 6)
-          const a2y = p1.y - arrowLen * Math.sin(angle + Math.PI / 6)
-          rc.line(p1.x, p1.y, a1x, a1y, roughOpts)
-          rc.line(p1.x, p1.y, a2x, a2y, roughOpts)
-        }
-      } else if (
-        elem.type === 'rect' &&
-        elem.x !== undefined &&
-        elem.y !== undefined &&
-        elem.width &&
-        elem.height
-      ) {
-        const rx = elem.width < 0 ? elem.x + elem.width : elem.x
-        const ry = elem.height < 0 ? elem.y + elem.height : elem.y
-        const rw = Math.abs(elem.width)
-        const rh = Math.abs(elem.height)
-        rc.rectangle(rx, ry, rw, rh, roughOpts)
-      } else if (
-        elem.type === 'circle' &&
-        elem.x !== undefined &&
-        elem.y !== undefined &&
-        elem.width &&
-        elem.height
-      ) {
-        const cx = elem.x + elem.width / 2
-        const cy = elem.y + elem.height / 2
-        rc.ellipse(cx, cy, Math.abs(elem.width), Math.abs(elem.height), roughOpts)
-      }
-
-      ctx.restore()
+      drawStaticElement(ctx, rc, elem, handDrawnStyle)
     }
 
     // Xóa preview cùng frame static vẽ xong (nét commit): không nháy trắng,
@@ -317,18 +333,53 @@ export function PageCanvas({
   // Vẽ lại canvas tĩnh, throttle theo frame: kéo nhóm nhiều object liên tục
   // chỉ redraw 1 lần/frame thay vì mỗi pointermove (đỡ jank trang nhiều nét)
   const redrawQueued = useRef(false)
+  // Nét vừa commit tăng dần (đã có trên bitmap tĩnh) → effect bỏ qua full redraw.
+  // Ghi cả backing + style lúc vẽ để zoom/đổi style là vẽ lại đủ (bitmap cũ sai scale).
+  const paintedIncrementalRef = useRef<{ id: string; backing: number; rough: boolean } | null>(null)
+
+  /**
+   * Commit 1 nét mới kiểu Excalidraw (ShapeCache): vẽ thẳng nét đó lên bitmap
+   * tĩnh có sẵn — O(1) thay vì vẽ lại toàn bộ trang O(n). Cùng routine + seed
+   * với full redraw nên pixels giống hệt; preview dọn cùng tick → liền mạch.
+   */
+  const commitNewElement = (newElem: DrawingElement) => {
+    const canvas = staticCanvasRef.current
+    const ctx = setupCtx(canvas, canvasBacking, false)
+    if (ctx && canvas) {
+      drawStaticElement(ctx, rough.canvas(canvas), newElem, handDrawnStyle)
+      paintedIncrementalRef.current = { id: newElem.id, backing: canvasBacking, rough: handDrawnStyle }
+    }
+    setupCtx(activeCanvasRef.current)
+    onAddElement(newElem)
+  }
+
   useEffect(() => {
     if (redrawQueued.current) return
     redrawQueued.current = true
     const raf = requestAnimationFrame(() => {
       redrawQueued.current = false
+      const inc = paintedIncrementalRef.current
+      const last = elements[elements.length - 1]
+      if (
+        inc &&
+        last &&
+        last.id === inc.id &&
+        canvasBacking === inc.backing &&
+        handDrawnStyle === inc.rough
+      ) {
+        // Nét cuối đã vẽ tăng dần lúc commit → khỏi full redraw, chỉ dọn preview
+        paintedIncrementalRef.current = null
+        setupCtx(activeCanvasRef.current)
+        return
+      }
+      paintedIncrementalRef.current = null
       redrawStaticCanvas()
     })
     return () => {
       cancelAnimationFrame(raf)
       redrawQueued.current = false
     }
-  }, [redrawStaticCanvas])
+  }, [redrawStaticCanvas, elements, handDrawnStyle, canvasBacking])
 
   // Get pointer coordinates relative to the page canvas (chia scale khi zoom)
   const getCanvasCoords = (e: React.PointerEvent | PointerEvent | React.MouseEvent): Point => {
@@ -886,7 +937,7 @@ export function PageCanvas({
         strokeWidth,
         opacity: activeTool === 'highlighter' ? 0.35 : 1.0,
       }
-      onAddElement(newElem)
+      commitNewElement(newElem)
     } else if (activeTool === 'line') {
       const dist = Math.hypot(endPoint.x - sp.x, endPoint.y - sp.y)
       if (dist < 4) {
@@ -903,7 +954,7 @@ export function PageCanvas({
         roughness: 1.0,
         seed: activeDrawingSeedRef.current,
       }
-      onAddElement(newElem)
+      commitNewElement(newElem)
     } else if (activeTool === 'arrow') {
       const dist = Math.hypot(endPoint.x - sp.x, endPoint.y - sp.y)
       if (dist < 4) {
@@ -926,7 +977,7 @@ export function PageCanvas({
         roughness: 1.0,
         seed: activeDrawingSeedRef.current,
       }
-      onAddElement(newElem)
+      commitNewElement(newElem)
     } else if (activeTool === 'rect') {
       const rx = Math.min(sp.x, endPoint.x)
       const ry = Math.min(sp.y, endPoint.y)
@@ -951,7 +1002,7 @@ export function PageCanvas({
         roughness: 1.0,
         seed: activeDrawingSeedRef.current,
       }
-      onAddElement(newElem)
+      commitNewElement(newElem)
     } else if (activeTool === 'circle') {
       const rx = Math.min(sp.x, endPoint.x)
       const ry = Math.min(sp.y, endPoint.y)
@@ -976,7 +1027,7 @@ export function PageCanvas({
         roughness: 1.0,
         seed: activeDrawingSeedRef.current,
       }
-      onAddElement(newElem)
+      commitNewElement(newElem)
     }
 
     currentPointsRef.current = []

@@ -213,6 +213,9 @@ Toàn bộ nhóm chính tùy biến được trong Settings (lưu localStorage).
 - Debounce mọi đường gõ: markdown 120ms, autosave 1.2–2s, convert 600ms, undo-commit 800ms.
 - Cache HTML theo dòng (Live), `React.memo` textbox/selection, `useMemo` flatten vault.
 - Canvas tĩnh redraw tối đa 1 lần/frame; preview vẽ rough.js tách khỏi preview nét đang vẽ.
+- Commit tăng dần kiểu ShapeCache của Excalidraw (`drawStaticElement` là nguồn
+  sự thật duy nhất cho pixels + `commitNewElement` vẽ thẳng 1 nét lên bitmap):
+  thả bút O(1) thay vì vẽ lại toàn bộ trang O(n); undo/xóa/zoom vẫn full redraw.
 - Code-split: Excalidraw (~1MB), jspdf+html-to-image (chỉ khi mở export), katex chunk riêng
   (~259KB), plugin-dialog dynamic import. Bundle chính gzip ~260KB.
 - Đã xóa (audit knip 2026-09): `simplification.ts`, `createDefaultNotebook`, `searchVault`,
