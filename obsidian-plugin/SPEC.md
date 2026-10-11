@@ -57,7 +57,7 @@ nhờ alias), lucide, markdown-it, katex, roughjs, idb-keyval. External: `obsidi
 click .mynote.md
   → Obsidian mở markdown view (đuôi sau chấm cuối là .md, registerExtensions không khớp)
   → event file-open → đợi 80ms cho view gán file xong
-  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì focus về đó + dọn tab thừa
+  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) + dọn tab markdown thừa, KHÔNG convert/load lại — click sidebar không bao giờ reload file
     (đổi tab markdown thừa thành vở tại chỗ rồi dọn leaf cũ, chỉ khi convert thành công);
     chưa có thì đổi leaf markdown đang hiển thị đúng file sang view vở (tìm leaf
     theo file đang hiển thị, không đoán bằng getMostRecentLeaf)
