@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const VAULT_PLUGINS = '/home/ti/Desktop/DATA_DESKTOP/0_Obsidian notebook/red/.obsidian/plugins/mybook-notebook'
+const VAULT_PLUGINS = '/home/ti/Desktop/DATA_DESKTOP/0_Obsidian notebook/red/.obsidian/plugins/mynote'
 
 const files = ['main.js', 'manifest.json', 'styles.css']
 
