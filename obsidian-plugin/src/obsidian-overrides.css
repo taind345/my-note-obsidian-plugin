@@ -4,7 +4,12 @@
   min-height: 300px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* CỐ TÌNH visible (không hidden): khi chuỗi height:100% của Obsidian gãy,
+     chính container ngoài của Obsidian mới là thằng cuộn thật — sticky của
+     toolbar chỉ dính được scroll ngoài nếu không có wrapper nào chặn giữa
+     (bất kỳ overflow nào khác visible cũng thành "scroll container" gần nhất
+     và nuốt hiệu ứng sticky). */
+  overflow: visible;
   background: var(--desk-bg, #e5e5e5);
   color: var(--text-main, #0f172a);
 }
@@ -41,11 +46,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-.mybook-notebook-view .header-center-tools {
-  margin: 8px auto;
+  /* visible để sticky của toolbar bắt được scroll ngoài (lý do xem .mybook-obsidian-host) */
+  overflow: visible;
 }
 
 .mybook-pages-scroll {
@@ -72,21 +74,22 @@
   box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
 }
 
-/* Toolbar nằm TRONG khung cuộn + sticky: cuộn đâu cũng dính trên cùng.
-   margin auto: vừa thì căn giữa, tràn thì bám mép (không bị đẩy lệch). */
-.mybook-pages-scroll > .header-center-tools {
+/* Toolbar đứng NGOÀI khung cuộn, con trực tiếp của .mybook-notebook-view.
+   - Khung trong cuộn được (height chain còn nguyên) → toolbar nằm yên trên cùng
+     nhờ flex column + flex-shrink:0, sticky không cần kích hoạt.
+   - Obsidian cuộn cả view (height chain gãy, khung trong cao bằng content) →
+     sticky top:0 dính toolbar theo scroll ngoài, cuộn tới trang mấy cũng còn.
+   Nền đục + shadow: khi dính, trang giấy cuộn bên dưới không xuyên qua. */
+.mybook-notebook-view > .header-center-tools {
   position: sticky;
   top: 0;
   z-index: 60;
   flex-shrink: 0;
-  margin: 8px auto 0 auto;
+  margin: 8px auto;
   max-width: calc(100% - 16px);
   flex-wrap: wrap;
   row-gap: 4px;
-}
-
-.mybook-notebook-view .header-center-tools {
-  flex-shrink: 0;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.18);
 }
 
 /* Ô nhập text chỉ 1 khung ngoài: tắt mọi viền/outline mặc định của Obsidian */

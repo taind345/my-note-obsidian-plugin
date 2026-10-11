@@ -118,9 +118,16 @@ Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynot
 
 ## 9. Giới hạn đã biết (2026-10)
 
-1. **Toolbar có thể trôi khi cuộn** (đang mở issue): sticky đã đặt trong khung cuộn +
-   `flex-shrink: 0`, nhưng nếu toàn bộ view bị cuộn bởi container Obsidian thì vẫn trôi.
-   Hướng xử lý tiếp: kiểm tra `overflow` chain thực tế trong DevTools của Obsidian.
+1. **Toolbar trôi khi cuộn — ĐÃ FIX (2026-10):** nguyên nhân là toolbar nằm TRONG
+   khung cuộn nội bộ (`.mybook-pages-scroll`) + `sticky`, nhưng khi chuỗi
+   `height:100%` gãy thì chính container Obsidian mới là thằng cuộn thật — khung
+   trong cao bằng content, không cuộn bao giờ nên sticky vô tác dụng. Fix: đưa
+   toolbar ra NGOÀI khung cuộn (con trực tiếp của `.mybook-notebook-view`,
+   `position:sticky; top:0`) + mở `overflow` của `.mybook-obsidian-host` /
+   `.mybook-notebook-view` thành `visible` để sticky bắt được scroll ngoài.
+   Khung trong cuộn được → toolbar nằm yên (flex column); Obsidian cuộn cả view
+   → sticky dính theo. Nếu tái phát, kiểm tra `overflow` chain trong DevTools
+   Obsidian (`Ctrl+Shift+I`) xem phần tử nào scroll thật.
 2. Canvas backing tối đa 3x (zoom to + màn hidpi rất lớn có thể hơi mờ khi zoom >200%).
 3. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM (mỗi canvas 2x ~14–28MB).
 4. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).

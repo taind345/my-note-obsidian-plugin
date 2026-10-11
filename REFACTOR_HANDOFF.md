@@ -53,10 +53,11 @@
 
 ## 2. Bug đang mở (chưa fix, đừng nhận là xong)
 
-- **Toolbar plugin trôi khi cuộn** (sticky đã đặt trong khung cuộn + flex-shrink:0 nhưng user
-  vẫn báo mất). Nghi ngờ: toàn bộ view bị cuộn bởi container Obsidian (host `height:100%`
-  không ăn). Hướng điều tra: DevTools Obsidian xem OVERFLOW CHAIN thực tế (phần tử nào
-  scroll), rồi mới sửa — đừng đoán như các turn trước.
+- ~~**Toolbar plugin trôi khi cuộn**~~ — **ĐÃ FIX 2026-10-11**: toolbar chuyển ra ngoài
+  `.mybook-pages-scroll` (con trực tiếp của `.mybook-notebook-view`, sticky top:0) +
+  `.mybook-obsidian-host`/`.mybook-notebook-view` về `overflow: visible` để sticky bắt
+  được scroll ngoài của Obsidian. Đã cài vào vault red (install-to-vault), cần Reload
+  Obsidian để kiểm chứng tay: mở vở 2+ trang, cuộn giữa trang 2 xem toolbar còn không.
 
 ## 3. Thứ tự refactor gợi ý (ROI cao → thấp)
 

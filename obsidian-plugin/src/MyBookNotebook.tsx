@@ -390,9 +390,11 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
 
   return (
     <div className="mybook-obsidian-host mybook-notebook-view">
-      <div ref={scrollElRef} className="mybook-pages-scroll">
-        {/* Toolbar nằm TRONG khung cuộn + sticky để cuộn đâu cũng dính trên cùng */}
-        <MiniToolbar
+      {/* Toolbar đứng NGOÀI khung cuộn + sticky top:0 (xem obsidian-overrides.css):
+          - khung trong cuộn được → toolbar nằm yên trên cùng (flex column)
+          - Obsidian cuộn cả view (chuỗi height:100% gãy, khung trong không cuộn)
+            → sticky dính theo scroll ngoài, không trôi mất */}
+      <MiniToolbar
           activeTool={activeTool}
         strokeColor={strokeColor}
         strokeWidth={strokeWidth}
@@ -434,12 +436,13 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
         onFitZoom={fitZoom}
         onAddPage={addPage}
       />
+      <div ref={scrollElRef} className="mybook-pages-scroll">
         <ScrollWidthReporter onWidth={reportScrollW} />
         <div
           className="mybook-pages-fitwrap"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
         >
-        {pages.map((page) => (
+          {pages.map((page) => (
           <div key={page.id} className="mybook-page-wrap">
             <NotebookPage
               page={page}
@@ -489,8 +492,8 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
               }}
               onNavigateLink={onNavigateLink}
             />
-          </div>
-        ))}
+            </div>
+          ))}
         </div>
       </div>
     </div>
