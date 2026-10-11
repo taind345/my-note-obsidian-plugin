@@ -204,10 +204,6 @@ Toàn bộ nhóm chính tùy biến được trong Settings (lưu localStorage).
 ## 13. Hiệu năng (đã áp dụng + đã dọn)
 
 - Không canvas vô hạn: trang cố định, unmount khi lật trang; undo cap 50/100.
-- Virtualize (plugin + dùng chung `useVirtualPages`): chỉ mount trang trong/kề
-  viewport (IO root viewport, overscan 1200px), placeholder giữ đúng layout;
-  `NotebookPage` memo compare tường minh (thao tác trang A không render trang B);
-  ảnh paste `loading="lazy" + decoding="async"`.
 - Debounce mọi đường gõ: markdown 120ms, autosave 1.2–2s, convert 600ms, undo-commit 800ms.
 - Cache HTML theo dòng (Live), `React.memo` textbox/selection, `useMemo` flatten vault.
 - Canvas tĩnh redraw tối đa 1 lần/frame; preview vẽ rough.js tách khỏi preview nét đang vẽ.

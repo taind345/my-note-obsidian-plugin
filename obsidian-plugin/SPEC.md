@@ -38,8 +38,7 @@ prepare-css.mjs        # copy App.css -> src/app.obsidian.css, strip url('/fonts
 scope-css.mjs          # prefix mọi selector vào .mybook-obsidian-host -> styles.css
 install-to-vault.mjs   # copy main.js/manifest.json/styles.css vào vault red
 src/main.ts            # Plugin: view, lệnh, routing file, asset resolver (~390 dòng)
-src/MyBookNotebook.tsx # state vở + history + toolbar + render pages virtualize
-                         # (`useVirtualPages`: IO + placeholder 800×1100 + pin trang mới)
+src/MyBookNotebook.tsx # state vở + history + toolbar + render pages (~500 dòng)
 src/MiniToolbar.tsx    # tool vẽ + màu + nét + undo + zoom/fit + thêm trang (~120 dòng)
 src/obsidian-overrides.css  # layout view + sticky toolbar + ẩn decor cần asset ngoài
 src/excalidraw-stub.ts # thay engine Excalidraw (không ship 1MB+)

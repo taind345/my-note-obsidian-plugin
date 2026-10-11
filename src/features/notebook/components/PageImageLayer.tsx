@@ -49,8 +49,6 @@ function PageImageLayerInner({ pageId: _pageId, images }: PageImageLayerProps) {
             src={img.src}
             alt={img.name || 'pasted image'}
             draggable={false}
-            loading="lazy"
-            decoding="async"
             style={{
               width: '100%',
               height: '100%',

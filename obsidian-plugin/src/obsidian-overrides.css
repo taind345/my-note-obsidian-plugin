@@ -74,16 +74,6 @@
   box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
 }
 
-/* Placeholder trang ngoài viewport (virtualize): giữ đúng kích thước layout
-   800×1100 để scroll không lệch; canvas/markdown/ảnh chỉ mount khi cuộn tới */
-.mybook-page-placeholder {
-  width: 800px;
-  height: 1100px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  background: var(--paper-bg, #ffffff);
-}
-
 /* Toolbar đứng NGOÀI khung cuộn, con trực tiếp của .mybook-notebook-view.
    - Khung trong cuộn được (height chain còn nguyên) → toolbar nằm yên trên cùng
      nhờ flex column + flex-shrink:0, sticky không cần kích hoạt.

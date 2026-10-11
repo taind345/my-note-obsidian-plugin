@@ -328,7 +328,6 @@ class MyBookView extends ItemView {
   /** Tải + render file vở (bỏ qua nếu đang hiển thị đúng file đó) */
   async loadPath(path: string): Promise<void> {
     if (path === this.currentFilePath && this.root) return
-    performance.mark('mybook:open-start')
     this.root?.unmount()
     this.root = null
     this.currentFilePath = path
@@ -359,12 +358,6 @@ class MyBookView extends ItemView {
     }
 
     const parsed = importNotebookFromMarkdown(raw)
-    performance.mark('mybook:open-parsed')
-    try {
-      performance.measure('mybook:open read+parse', 'mybook:open-start', 'mybook:open-parsed')
-    } catch {
-      /* performance API không có trong môi trường lạ thì bỏ qua */
-    }
     const initialMeta = parsed
       ? parsed.meta
       : getEmptyNotebook(file.basename, 'grid').meta
