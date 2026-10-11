@@ -70,6 +70,16 @@ function findMarkdownLeavesShowing(app: App, filePath: string): WorkspaceLeaf[] 
   return out
 }
 
+/** Giấu nội dung 1 leaf (display:none): không paint → không chớp, không tốn
+    render. Không đụng cấu trúc leaf nên an toàn giữa lúc Obsidian mở dở. */
+function setLeafContentVisible(leaf: WorkspaceLeaf, visible: boolean): void {
+  try {
+    leaf.view.containerEl.style.display = visible ? '' : 'none'
+  } catch {
+    /* leaf/view chưa sẵn — bỏ qua, tick sau thử lại */
+  }
+}
+
 export default class MyBookPlugin extends Plugin {
   async onload() {
     // Ảnh ![[...]] trong textbox resolve qua Vault API (resource path của Obsidian)
@@ -95,12 +105,17 @@ export default class MyBookPlugin extends Plugin {
         if (!file || !isMyBookNote(this.app, file)) return
         const start = performance.now()
         const st = { key: '', stable: 0 }
+        const hiddenByMe: WorkspaceLeaf[] = []
         const tick = () => {
           void (async () => {
             try {
-              const settled = await this.settleFileOpen(file, st)
+              const settled = await this.settleFileOpen(file, st, hiddenByMe)
               if (!settled && performance.now() - start < 2000) {
                 requestAnimationFrame(tick)
+              } else {
+                // Hết vòng (xong hoặc timeout): hiện lại tab nào mình giấu mà
+                // chưa bị detach — tránh kẹt tab vô hình. Detached thì vô hại.
+                for (const l of hiddenByMe) setLeafContentVisible(l, true)
               }
             } catch (err) {
               console.error('[MyBook] auto-convert view failed:', err)
@@ -253,7 +268,8 @@ export default class MyBookPlugin extends Plugin {
    */
   async settleFileOpen(
     file: TFile,
-    st: { key: string; stable: number }
+    st: { key: string; stable: number },
+    hiddenByMe: WorkspaceLeaf[]
   ): Promise<boolean> {
     const STABLE_FRAMES = 3
     const stableHit = (key: string): boolean => {
@@ -274,6 +290,15 @@ export default class MyBookPlugin extends Plugin {
       const active = this.app.workspace.activeLeaf
       const keep = active && notebookLeaves.includes(active) ? active : notebookLeaves[0]
       if (!keep) return true
+      // Giấu NGAY tab markdown thừa (tick đầu, chưa cần ổn định): display:none
+      // thì browser không paint → hết chớp + hết tốn render JSON nặng. Giấu không
+      // đụng cấu trúc leaf nên vô hại giữa lúc mở dở; dọn/focus vẫn đợi ổn định.
+      for (const l of mdLeaves) {
+        if (l !== keep && !hiddenByMe.includes(l)) {
+          setLeafContentVisible(l, false)
+          hiddenByMe.push(l)
+        }
+      }
       // Đợi tập leaf ổn định rồi mới đụng (tránh đè lúc Obsidian mở dở)
       const nbKey = `nb:${notebookLeaves.length}|md:${mdLeaves.length}`
       if (!stableHit(nbKey)) return false
@@ -311,6 +336,8 @@ export default class MyBookPlugin extends Plugin {
     // Đợi leaf ổn định (view+file không đổi liên tiếp) rồi mới convert —
     // convert giữa lúc mở dở sẽ bị Obsidian đè lại → trắng tab
     if (!stableHit(`md:${showing || active}`)) return false
+    // Phòng hờ leaf từng bị giấu bởi loop trước: hiện lại trước khi đổi view
+    setLeafContentVisible(leaf, true)
     await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
     const v = leaf.view
     if (v instanceof MyBookView) await v.loadPath(file.path)
