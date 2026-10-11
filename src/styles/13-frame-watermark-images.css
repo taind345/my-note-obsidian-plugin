@@ -1,0 +1,254 @@
+/* 13-frame-watermark-images.css — auto-split from App.css (5548–5800). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Khung card cho textbox (chuột phải > Hiển thị khung)
+   - Mặc định: card trắng tối giản (khung mặc định)
+   - Theme pastel: card kem + washi + sparkle + decor + gạch chân (theme 1)
+   ========================================================================== */
+.notebook-textbox.is-framed {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 20px 24px;
+  box-shadow:
+    0 14px 34px rgba(15, 23, 42, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.07);
+}
+
+.theme-pastel .notebook-textbox.is-framed {
+  background: #fffdf9;
+  border-color: #f0ebdb;
+  box-shadow:
+    0 14px 34px rgba(93, 102, 160, 0.14),
+    0 2px 6px rgba(93, 102, 160, 0.08);
+}
+
+.theme-pastel .notebook-textbox.is-framed::before {
+  content: '';
+  position: absolute;
+  top: -13px;
+  left: 34px;
+  width: 96px;
+  height: 24px;
+  transform: rotate(-32deg);
+  background: linear-gradient(to bottom, rgba(139, 155, 245, 0.6), rgba(139, 155, 245, 0.42));
+  border-left: 1px dashed rgba(255, 255, 255, 0.7);
+  border-right: 1px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.theme-pastel .notebook-textbox.is-framed::after {
+  content: '✦';
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  color: #aab6f7;
+  font-size: 17px;
+  line-height: 1;
+  text-shadow: 20px 16px 0 #c9d1fa;
+  pointer-events: none;
+}
+
+/* Decor asset thật trên khung card: mèo ngủ + cành lá (chỉ theme pastel) */
+.frame-decor {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 6;
+}
+
+.theme-pastel .frame-decor {
+  display: block;
+}
+
+.frame-cat {
+  right: -28px;
+  bottom: -20px;
+  width: 112px;
+}
+
+.frame-sprig {
+  right: -32px;
+  top: 64px;
+  width: 48px;
+  opacity: 0.95;
+}
+
+/* Gạch chân vẽ tay dưới tiêu đề lớn trong khung (chỉ theme pastel) */
+.theme-pastel .notebook-textbox.is-framed .obsidian-markdown-body h1:first-child {
+  background-image: url('/doodles/underline.png');
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 230px auto;
+  padding-bottom: 18px;
+}
+
+/* Khung card cho ảnh paste: mặc định tối giản, pastel thêm washi */
+.page-pasted-image {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.page-pasted-image.is-framed {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow:
+    0 14px 34px rgba(15, 23, 42, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.theme-pastel .page-pasted-image.is-framed {
+  background: #fffdf9;
+  border-color: #f0ebdb;
+  box-shadow:
+    0 14px 34px rgba(93, 102, 160, 0.16),
+    0 2px 6px rgba(93, 102, 160, 0.1);
+}
+
+/* ==========================================================================
+   Watermark mờ trên giấy (asset thật, chỉ theme pastel)
+   Núi góc phải-trên, lá góc trái-dưới — nằm dưới chữ/nét vẽ
+   ========================================================================== */
+.sheet-watermark {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  background-repeat: no-repeat;
+}
+
+.theme-pastel .sheet-watermark {
+  display: block;
+}
+
+.theme-pastel .watermark-corner {
+  top: 10px;
+  right: 12px;
+  width: 120px;
+  height: 92px;
+  background-image: url('/doodles/leaf-corner.png');
+  background-size: contain;
+  background-position: top right;
+  opacity: 0.55;
+}
+
+.theme-pastel .watermark-leaves {
+  left: 8px;
+  bottom: 6px;
+  width: 100px;
+  height: 223px;
+  background-image: url('/doodles/sprig-tall.png');
+  background-size: contain;
+  background-position: bottom left;
+  opacity: 0.55;
+}
+
+/* Washi tape trên ảnh có khung (chỉ theme pastel) */
+.theme-pastel .page-pasted-image.is-framed::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 30px;
+  width: 84px;
+  height: 22px;
+  transform: rotate(-32deg);
+  background: linear-gradient(to bottom, rgba(139, 155, 245, 0.6), rgba(139, 155, 245, 0.42));
+  border-left: 1px dashed rgba(255, 255, 255, 0.7);
+  border-right: 1px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ==========================================================================
+   Pasted Images on .mynote.md pages (Ctrl+V / drag-drop / nút Ảnh)
+   ========================================================================== */
+.page-image-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.page-pasted-image {
+  transition: box-shadow 0.15s ease;
+}
+
+.page-pasted-image.selected {
+  z-index: 5;
+}
+
+.page-add-image-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.12s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(2px);
+}
+
+.notebook-sheet:hover .page-add-image-btn {
+  opacity: 1;
+}
+
+.page-add-image-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.page-drop-image-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 2px dashed #2563eb;
+  border-radius: 4px;
+  color: #1d4ed8;
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.page-pasting-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 41;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+

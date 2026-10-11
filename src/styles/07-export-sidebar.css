@@ -1,0 +1,649 @@
+/* 07-export-sidebar.css — auto-split from App.css (1493–2140). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   PDF Export Modal
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+  width: 480px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-icon {
+  color: #2563eb;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 4px;
+}
+
+.modal-close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.resolution-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.res-btn {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+
+.res-btn strong {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.res-btn span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.res-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.res-btn.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.res-btn.selected strong {
+  color: #2563eb;
+}
+
+.range-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
+}
+
+.btn-primary {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+/* Export progress in modal */
+.export-progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 0;
+  gap: 12px;
+}
+
+.spin-loader {
+  animation: spin 1s linear infinite;
+  color: #2563eb;
+}
+
+.progress-subtext {
+  font-size: 12px;
+  color: #64748b;
+  max-width: 320px;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #2563eb;
+  transition: width 0.2s ease;
+}
+
+.progress-percent {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.export-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* Loading initial screen */
+.app-loading-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--desk-bg);
+  gap: 12px;
+}
+
+.notebook-spine-icon {
+  font-size: 48px;
+}
+
+
+/* ==========================================================================
+   Obsidian 3-in-1 Integration: Master Layout, Sidebar, Tabs, Editors & Modals
+   ========================================================================== */
+
+/* Master Application Layout */
+.app-root-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--desk-bg);
+}
+
+.app-main-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.app-center-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: #f8fafc;
+  position: relative;
+}
+
+.mynote-workspace-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 40px);
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   Obsidian-Style File Tree Sidebar
+   ========================================================================== */
+.obsidian-sidebar-container {
+  width: 270px;
+  min-width: 220px;
+  max-width: 380px;
+  height: 100%;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 50;
+  transition: width 0.2s ease;
+}
+
+.vault-header {
+  height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.vault-name-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  max-width: 155px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.vault-name-badge:hover {
+  background: #f1f5f9;
+}
+
+.theme-pastel .vault-name-badge {
+  padding: 5px 10px;
+  border-radius: 9px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.theme-pastel .vault-name-badge:hover {
+  background: #eef2f7;
+  border-color: #e2e8f0;
+}
+
+.vault-icon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.vault-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-dropdown-arrow {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.vault-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vault-action-icon-btn {
+  background: transparent;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.vault-action-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.vault-action-icon-btn.highlight-mynote {
+  color: #0ea5e9;
+}
+
+.vault-action-icon-btn.highlight-mynote:hover {
+  background: #e0f2fe;
+}
+
+.vault-action-icon-btn.settings-sidebar-btn:hover,
+.vault-action-icon-btn.collapse-sidebar-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Icon panel kiểu theme 1: cụm pill, nút bo tròn nổi khi hover */
+.theme-pastel .vault-actions-group {
+  gap: 2px;
+  background: #f3efe1;
+  border: 1px solid #e9e2cf;
+  border-radius: 10px;
+  padding: 2px 3px;
+}
+
+.theme-pastel .vault-action-icon-btn {
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  color: #7c8aa5;
+}
+
+.theme-pastel .vault-action-icon-btn:hover {
+  background: #fffdf7;
+  color: #4a5ac8;
+  box-shadow: 0 1px 4px rgba(108, 123, 214, 0.18);
+  transform: translateY(-0.5px);
+}
+
+.theme-pastel .vault-action-icon-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.theme-pastel .vault-action-icon-btn.highlight-mynote {
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.theme-pastel .vault-action-icon-btn.highlight-mynote:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.theme-pastel .vault-action-icon-btn.highlight-code {
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.theme-pastel .vault-action-icon-btn.highlight-code:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.vault-action-icon-btn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+/* Search Box */
+.vault-search-box {
+  padding: 8px 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.vault-search-box .search-icon {
+  position: absolute;
+  left: 20px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.vault-search-box .search-input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0 24px 0 28px;
+  font-size: 12px;
+  outline: none;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.vault-search-box .search-input:focus {
+  border-color: #10b981;
+  background: #ffffff;
+}
+
+.vault-search-box .search-clear-btn {
+  position: absolute;
+  right: 18px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+/* File Tree */
+.vault-file-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0;
+}
+
+.vault-tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-tree-item {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  padding-right: 12px;
+  border-radius: 4px;
+  margin: 1px 6px;
+  transition: background 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vault-tree-item:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.vault-tree-item.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #065f46;
+  font-weight: 600;
+}
+
+.folder-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  color: #64748b;
+  border-radius: 3px;
+}
+
+.folder-chevron:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.file-indent-space {
+  width: 16px;
+  display: inline-block;
+}
+
+.item-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.color-folder {
+  color: #64748b;
+}
+
+.color-folder-open {
+  color: #3b82f6;
+}
+
+.color-mynote {
+  color: #0ea5e9;
+}
+
+.color-md {
+  color: #10b981;
+}
+
+.color-code {
+  color: #8b5cf6;
+}
+
+.color-img {
+  color: #f59e0b;
+}
+
+.item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-subtree {
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-empty-folder-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.vault-loading-state,
+.vault-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+  gap: 10px;
+}
+
+.vault-loading-state .spin-icon {
+  animation: spin 1s linear infinite;
+  color: #10b981;
+}
+
+.open-sample-btn {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.open-sample-btn:hover {
+  background: #059669;
+}
+

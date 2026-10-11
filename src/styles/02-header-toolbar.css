@@ -1,0 +1,428 @@
+/* 02-header-toolbar.css — auto-split from App.css (93–519). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Header Toolbar
+   ========================================================================== */
+.app-header {
+  height: 44px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  position: relative;
+  z-index: 30;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  gap: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.brand-icon {
+  font-size: 17px;
+}
+
+/* File Dropdown Menu */
+.file-menu-container {
+  position: relative;
+}
+
+.file-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.file-menu-btn:hover,
+.file-menu-btn.active {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.file-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 250px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 120;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: fadeInDown 0.12s ease-out;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  width: 100%;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.dropdown-item.highlight {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.dropdown-item.highlight:hover {
+  background: #eff6ff;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.autosave-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.autosave-indicator.status-saved {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.autosave-indicator.status-saving {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.autosave-indicator.status-dirty {
+  color: #d97706;
+  background: #fffbeb;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Tools bar in center */
+.header-center-tools {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  padding: 2px 4px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.tool-button {
+  position: relative;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.tool-button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tool-button.active {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 0 0 1.5px #3b82f6 inset, 0 1px 2px rgba(37, 99, 235, 0.15);
+}
+
+.tool-button.active svg {
+  stroke: #1d4ed8;
+  stroke-width: 2.2;
+}
+
+.tool-shortcut-badge {
+  position: absolute;
+  bottom: 1.5px;
+  right: 2.5px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: #94a3b8;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.tool-button:hover .tool-shortcut-badge {
+  color: #475569;
+}
+
+.tool-button.active .tool-shortcut-badge {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.tool-button.lock-button.active.locked {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.tool-button.lock-button.active.locked .tool-shortcut-badge {
+  color: #ffffff;
+}
+
+.tool-divider {
+  width: 1px;
+  height: 18px;
+  background: #cbd5e1;
+  margin: 0 3px;
+}
+
+/* Right header controls */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.stroke-controls-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  padding: 2px 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.color-swatches.mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-swatches.mini .color-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease;
+}
+
+.color-swatches.mini .color-dot.selected {
+  border-color: #0f172a;
+  transform: scale(1.2);
+}
+
+.compact-select {
+  height: 28px;
+  line-height: 26px;
+  padding: 0 22px 0 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  user-select: auto;
+  -webkit-user-select: auto;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.compact-select:hover {
+  border-color: #94a3b8;
+}
+
+.compact-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.flip-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: all 0.12s ease;
+}
+
+.flip-toggle-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.flip-toggle-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* Minimalist Right Action Buttons */
+.header-undo-redo-group {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.undo-redo-btn {
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.undo-redo-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.undo-redo-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.undo-redo-sep {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+}
+
+.header-action-btn {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: all 0.12s ease;
+}
+
+.header-action-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.header-action-btn.icon-only {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+.header-action-btn.add-page-btn {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.header-action-btn.add-page-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+

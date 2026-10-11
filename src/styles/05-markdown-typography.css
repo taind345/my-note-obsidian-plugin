@@ -1,0 +1,279 @@
+/* 05-markdown-typography.css — auto-split from App.css (980–1257). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Obsidian-Fidelity Markdown Typography
+   ========================================================================== */
+.obsidian-markdown-body {
+  color: #0f172a;
+  font-size: 15px;
+  word-break: break-word;
+  text-align: left;
+  font-family: var(--current-font, var(--font-cascadia));
+}
+
+.obsidian-markdown-body h1 {
+  font-size: 22px;
+  line-height: calc(var(--line-pitch, 32px) * 2);
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: left;
+}
+
+.obsidian-markdown-body h2 {
+  font-size: 18px;
+  line-height: var(--line-pitch, 32px);
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: left;
+}
+
+.obsidian-markdown-body h3 {
+  font-size: 16px;
+  line-height: var(--line-pitch, 32px);
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+}
+
+.obsidian-markdown-body p {
+  margin: 0;
+  padding: 0;
+  line-height: var(--line-pitch, 32px);
+  text-align: left;
+}
+
+.obsidian-markdown-body ul,
+.obsidian-markdown-body ol {
+  margin: 0;
+  padding-left: 18px;
+  list-style-position: outside;
+}
+
+.obsidian-markdown-body li {
+  line-height: var(--line-pitch, 32px);
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.obsidian-markdown-body li > p {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+}
+
+/* Task list checkboxes - Obsidian style */
+.obsidian-task-item {
+  list-style: none !important;
+  display: flex !important;
+  align-items: center;
+  line-height: var(--line-pitch, 32px);
+  margin: 0;
+  padding: 0;
+  cursor: default;
+}
+
+.obsidian-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 3px;
+  margin-right: 8px;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.obsidian-checkbox-box:hover {
+  border-color: var(--obsidian-green);
+}
+
+.obsidian-checkbox-box.checked {
+  background-color: var(--obsidian-green);
+  border-color: var(--obsidian-green);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.task-text {
+  flex: 1;
+}
+
+.task-done {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+/* Obsidian Green Wikilinks & Standard Links */
+.obsidian-wikilink {
+  color: var(--obsidian-green);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.4);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.obsidian-wikilink:hover {
+  border-bottom-color: var(--obsidian-green);
+  background: var(--obsidian-bg-tint);
+}
+
+.obsidian-markdown-body a {
+  color: var(--obsidian-green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Obsidian Highlights: ==text== */
+.obsidian-highlight {
+  background: rgba(16, 185, 129, 0.2);
+  color: #065f46;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* Obsidian Embedded Images */
+.obsidian-image-container {
+  margin: 12px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.obsidian-embedded-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: block;
+  object-fit: contain;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.obsidian-embedded-image:hover {
+  transform: scale(1.01);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Obsidian Bold Green Arrows: ==> */
+.obsidian-arrow {
+  color: var(--obsidian-green);
+  font-weight: 700;
+  margin: 0 4px;
+}
+
+/* Obsidian Callout Card: > Callout text */
+.obsidian-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-left: 3.5px solid var(--obsidian-green);
+  background: var(--obsidian-bg-tint);
+  padding: 2px 12px;
+  margin: 4px 0;
+  border-radius: 0 6px 6px 0;
+  line-height: var(--line-pitch, 32px);
+}
+
+.callout-chevron {
+  color: var(--obsidian-green);
+  font-weight: bold;
+  font-size: 18px;
+  margin-top: -1px;
+}
+
+.callout-content {
+  flex: 1;
+}
+
+/* Obsidian Code Card with Copy Button */
+.obsidian-code-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin: 6px 0;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.code-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+  font-family: var(--font-mono);
+}
+
+.code-card-copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 3px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.code-card-copy-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.obsidian-code-card pre {
+  margin: 0;
+  padding: 10px 14px;
+  overflow-x: auto;
+  background: transparent;
+  font-family: var(--font-cascadia), var(--font-mono);
+  font-size: 13px;
+  line-height: 22px;
+  color: #1e293b;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.obsidian-code-card pre::-webkit-scrollbar {
+  height: 4px;
+}
+
+.obsidian-code-card pre::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.obsidian-code-card pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.obsidian-code-card code {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+.empty-placeholder {
+  color: #94a3b8;
+}
+

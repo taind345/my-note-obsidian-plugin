@@ -1,0 +1,948 @@
+/* 12-reading-live-simple.css — auto-split from App.css (4601–5547). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Pretty Reading View — preview markdown đẹp kiểu Obsidian
+   (áp cho khung preview .md-preview-pretty, không đụng textbox vở)
+   ========================================================================== */
+.md-preview-pretty {
+  --pretty-font: 'Inter', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --pretty-ink: #1e293b;
+  --pretty-muted: #64748b;
+  --pretty-accent: #10b981;
+  --pretty-accent-soft: rgba(16, 185, 129, 0.1);
+  --pretty-code-bg: #f1f5f9;
+  --pretty-border: #e2e8f0;
+}
+
+.md-preview-pretty.obsidian-markdown-body {
+  font-family: var(--pretty-font);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--pretty-ink);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 32px 60px 32px;
+  word-break: break-word;
+}
+
+.md-preview-pretty h1 {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0.4em 0 0.5em 0;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--pretty-border);
+  color: #0f172a;
+}
+
+.md-preview-pretty h2 {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 1.1em 0 0.5em 0;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--pretty-border);
+  color: #0f172a;
+}
+
+.md-preview-pretty h3 {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 1em 0 0.4em 0;
+  color: #1e293b;
+}
+
+.md-preview-pretty p {
+  margin: 0.55em 0;
+  line-height: 1.75;
+}
+
+.md-preview-pretty ul,
+.md-preview-pretty ol {
+  margin: 0.55em 0;
+  padding-left: 26px;
+}
+
+.md-preview-pretty li {
+  line-height: 1.7;
+  margin: 0.2em 0;
+  padding-left: 2px;
+}
+
+.md-preview-pretty li::marker {
+  color: var(--pretty-accent);
+  font-weight: 700;
+}
+
+.md-preview-pretty .obsidian-task-item {
+  gap: 4px;
+  line-height: 1.7;
+}
+
+.md-preview-pretty .obsidian-checkbox-box {
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  border-radius: 5px;
+  margin-top: 4px;
+}
+
+.md-preview-pretty a,
+.md-preview-pretty .obsidian-wikilink {
+  color: var(--pretty-accent);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 2px;
+  transition: background 0.12s ease;
+}
+
+.md-preview-pretty a:hover,
+.md-preview-pretty .obsidian-wikilink:hover {
+  background: var(--pretty-accent-soft);
+  border-bottom-color: var(--pretty-accent);
+}
+
+.md-preview-pretty .obsidian-highlight {
+  background: linear-gradient(to top, rgba(250, 204, 21, 0.45) 38%, transparent 38%);
+  padding: 0 2px;
+  border-radius: 2px;
+  color: inherit;
+  font-weight: 500;
+}
+
+.md-preview-pretty code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--pretty-code-bg);
+  border: 1px solid var(--pretty-border);
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #be123c;
+  word-break: break-word;
+}
+
+.md-preview-pretty .obsidian-code-card {
+  border-radius: 12px;
+  margin: 14px 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.md-preview-pretty .obsidian-code-card pre {
+  font-size: 13.5px;
+  line-height: 1.65;
+  padding: 14px 16px;
+}
+
+.md-preview-pretty blockquote,
+.md-preview-pretty .obsidian-callout {
+  border-left: 3.5px solid var(--pretty-accent);
+  background: linear-gradient(to right, var(--pretty-accent-soft), transparent 70%);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 16px;
+  margin: 12px 0;
+  line-height: 1.7;
+}
+
+.md-preview-pretty table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  display: table;
+}
+
+.md-preview-pretty th,
+.md-preview-pretty td {
+  border: 1px solid var(--pretty-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.md-preview-pretty th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.md-preview-pretty tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+.md-preview-pretty hr {
+  border: none;
+  border-top: 2px solid var(--pretty-border);
+  margin: 26px auto;
+  max-width: 240px;
+}
+
+.md-preview-pretty .obsidian-image-container {
+  margin: 18px 0;
+}
+
+.md-preview-pretty .obsidian-embedded-image {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.md-preview-pretty .obsidian-arrow {
+  font-weight: 800;
+}
+
+/* ==========================================================================
+   Live Preview — dòng con trỏ hiện source, còn lại render chỉn chu
+   ========================================================================== */
+.live-preview-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #ffffff;
+  cursor: text;
+  position: relative;
+}
+
+.live-suggest-popup {
+  position: sticky;
+  top: 0;
+  margin: 8px auto 0 auto;
+  z-index: 70;
+}
+
+.live-preview-doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 32px 120px 32px;
+  font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+  color: #1e293b;
+}
+
+/* Khối code fence đang sửa: textarea nhiều dòng nền code */
+.live-fence-edit {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #0f172a;
+  padding: 12px 14px;
+  caret-color: #2563eb;
+}
+
+.live-line {
+  min-height: 28px;
+  border-radius: 6px;
+  transition: background 0.1s ease;
+}
+
+.live-line:hover {
+  background: rgba(241, 245, 249, 0.6);
+}
+
+.live-line.active {
+  background: transparent;
+}
+
+.live-line-rendered {
+  overflow-wrap: break-word;
+  /* font kế thừa từ .live-preview-doc (đồng bộ font markdown trong Settings) */
+  font-size: 16px;
+  line-height: 1.75;
+  color: #1e293b;
+}
+
+.live-line-rendered h1 {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+.live-line-rendered h2 {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+  color: #0f172a;
+}
+
+.live-line-rendered h3 {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+  color: #1e293b;
+}
+
+.live-line-rendered p {
+  margin: 0;
+  line-height: 1.75;
+}
+
+.live-line-rendered ul,
+.live-line-rendered ol {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.live-line-rendered code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: #be123c;
+}
+
+.live-line-rendered table {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.live-line-rendered th,
+.live-line-rendered td {
+  border: 1px solid #e2e8f0;
+  padding: 5px 10px;
+}
+
+.live-line-rendered th {
+  background: #f8fafc;
+}
+
+.live-line-rendered hr {
+  border: none;
+  border-top: 2px solid #e2e8f0;
+  margin: 8px auto;
+  max-width: 200px;
+}
+
+.live-line-rendered:empty::before {
+  content: '';
+}
+
+.live-line-edit {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: rgba(239, 246, 255, 0.55);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: #0f172a;
+  padding: 2px 8px;
+  margin-left: -8px;
+  caret-color: #2563eb;
+}
+
+.live-empty-hint {
+  color: #94a3b8;
+  font-style: italic;
+  padding: 12px 0;
+}
+
+/* ==========================================================================
+   Simple Editor — WYSIWYG cho người không chuyên (toolbar như Word)
+   ========================================================================== */
+.simple-editor-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.simple-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  user-select: none;
+}
+
+.simple-toolbar.unified-toolbar {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.simple-tool-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background 0.1s ease;
+}
+
+.simple-tool-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.simple-tool-btn.active,
+.simple-tool-btn.primary {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.simple-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: #cbd5e1;
+  margin: 0 5px;
+  flex-shrink: 0;
+}
+
+.simple-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  padding: 0;
+}
+
+.simple-editable {
+  flex: 1;
+  overflow-y: auto;
+  outline: none;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 26px 34px 80px 34px;
+  font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.75;
+  color: #1e293b;
+  caret-color: #2563eb;
+}
+
+.simple-editable:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.simple-editable h1 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0.4em 0 0.5em 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.simple-editable h2 {
+  font-size: 23px;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em 0;
+}
+
+.simple-editable h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em 0;
+}
+
+.simple-editable p {
+  margin: 0.55em 0;
+}
+
+.simple-editable ul,
+.simple-editable ol {
+  padding-left: 26px;
+  margin: 0.55em 0;
+}
+
+.simple-editable li {
+  margin: 0.2em 0;
+}
+
+.simple-editable blockquote {
+  border-left: 3.5px solid #10b981;
+  background: rgba(16, 185, 129, 0.07);
+  margin: 10px 0;
+  padding: 8px 14px;
+  border-radius: 0 8px 8px 0;
+}
+
+.simple-editable pre {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  overflow-x: auto;
+}
+
+.simple-editable a {
+  color: #10b981;
+}
+
+.simple-editable img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.simple-editable table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.simple-editable th,
+.simple-editable td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+}
+.theme-pastel {
+  --desk-bg: #f4f1e8;
+  --paper-bg: #fffdf6;
+  --ruled-line-color: rgba(150, 163, 235, 0.35);
+  --margin-line-color: rgba(244, 114, 182, 0.4);
+  --header-line-color: rgba(150, 163, 235, 0.45);
+  --primary-color: #6c7bd6;
+  --primary-hover: #5a6ac2;
+  --toolbar-bg: #fffdf7;
+  --toolbar-border: #e9e2cf;
+  --text-main: #424b64;
+  --text-muted: #9298ad;
+}
+
+.theme-pastel.html, .theme-pastel body { background-color: var(--desk-bg); }
+
+/* --- Workspace & desk --- */
+.theme-pastel .app-center-workspace {
+  background: #f6f3ea;
+}
+
+.theme-pastel .notebook-desk {
+  z-index: 1;
+}
+
+/* Giấy caro periwinkle nhạt */
+.theme-pastel .notebook-sheet.pattern-grid {
+  background-color: #fffdf6;
+  background-image:
+    linear-gradient(to right, rgba(124, 140, 248, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(124, 140, 248, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.theme-pastel .notebook-sheet.pattern-dots {
+  background-color: #fffdf6;
+  background-image: radial-gradient(rgba(124, 140, 248, 0.4) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+.theme-pastel .notebook-sheet.pattern-blank {
+  background-color: #fffdf6;
+}
+
+/* --- Header toolbar pills --- */
+.theme-pastel .app-header {
+  background: #fffdf7;
+  border-bottom: 1px solid #e9e2cf;
+}
+
+.theme-pastel .header-center-tools {
+  background: #fbf8ef;
+  border: 1px solid #e9e2cf;
+  border-radius: 14px;
+  padding: 3px 6px;
+}
+
+.theme-pastel .tool-button {
+  color: #6b7390;
+  border-radius: 10px;
+}
+
+.theme-pastel .tool-button:hover {
+  background: #f0ecdd;
+  color: #424b64;
+}
+
+.theme-pastel .tool-button.active {
+  background: #e3e8ff !important;
+  color: #4a5ac8 !important;
+  box-shadow: 0 0 0 1.5px #8b9bf5 inset, 0 2px 6px rgba(108, 123, 214, 0.25);
+}
+
+.theme-pastel .tool-button.active svg {
+  stroke: #4a5ac8;
+}
+
+.theme-pastel .tool-button.active .tool-shortcut-badge {
+  color: #4a5ac8;
+}
+
+.theme-pastel .tool-button.lock-button.active.locked {
+  background: #6c7bd6 !important;
+  color: #ffffff !important;
+}
+
+.theme-pastel .file-menu-btn,
+.theme-pastel .header-action-btn,
+.theme-pastel .compact-select,
+.theme-pastel .handdrawn-toggle-btn,
+.theme-pastel .flip-toggle-btn {
+  background: #fffdf7;
+  border-color: #e3dcc6;
+  color: #5b637e;
+  border-radius: 10px;
+}
+
+.theme-pastel .file-menu-btn:hover,
+.theme-pastel .header-action-btn:hover,
+.theme-pastel .compact-select:hover {
+  border-color: #b9c1f5;
+  background: #f4f2ff;
+  color: #4a5ac8;
+}
+
+.theme-pastel .header-action-btn.add-page-btn {
+  background: #eef0ff;
+  border-color: #c6cff7;
+  color: #4a5ac8;
+}
+
+.theme-pastel .header-action-btn.add-page-btn:hover {
+  background: #e0e6ff;
+}
+
+.theme-pastel .autosave-indicator {
+  background: #f3efe1;
+  border-radius: 9999px;
+}
+
+.theme-pastel .autosave-indicator.status-saved {
+  background: #e9f7ef;
+}
+
+.theme-pastel .stroke-controls-pill {
+  background: #fbf8ef;
+  border-color: #e9e2cf;
+  border-radius: 10px;
+}
+
+.theme-pastel .handdrawn-toggle-btn.active,
+.theme-pastel .flip-toggle-btn.active {
+  background: #eef0ff;
+  border-color: #b9c1f5;
+  color: #4a5ac8;
+}
+
+.theme-pastel .header-undo-redo-group {
+  border-color: #e3dcc6;
+  border-radius: 10px;
+  background: #fffdf7;
+}
+
+/* --- Tab strip --- */
+.theme-pastel .obsidian-tab-strip {
+  background: #efe9d8;
+  border-bottom: 1px solid #e3dcc6;
+}
+
+.theme-pastel .obsidian-tab {
+  background: #e7e0cd;
+  color: #6b7390;
+  border-radius: 10px 10px 0 0;
+}
+
+.theme-pastel .obsidian-tab:hover {
+  background: #ded5bd;
+  color: #424b64;
+}
+
+.theme-pastel .obsidian-tab.active {
+  background: #fffdf7;
+  color: #424b64;
+  border-top: 2px solid #7c8cf8;
+}
+
+.theme-pastel .tabbar-sidebar-toggle-btn.active {
+  color: #4a5ac8;
+  background: #e3e8ff;
+}
+
+/* --- Sidebar --- */
+.theme-pastel .obsidian-sidebar-container {
+  background: #faf7ee;
+  border-right: 1px solid #e9e2cf;
+}
+
+.theme-pastel .vault-header {
+  background: #fffdf7;
+  border-bottom: 1px solid #ece5d1;
+}
+
+.theme-pastel .vault-name-badge {
+  color: #424b64;
+}
+
+.theme-pastel .vault-search-box {
+  background: #fffdf7;
+  border-bottom: 1px solid #f1ebda;
+}
+
+.theme-pastel .vault-search-box .search-input {
+  background: #f6f2e6;
+  border-color: #e9e2cf;
+  border-radius: 10px;
+}
+
+.theme-pastel .vault-search-box .search-input:focus {
+  border-color: #8b9bf5;
+  background: #ffffff;
+}
+
+.theme-pastel .vault-tree-item {
+  color: #5b637e;
+  border-radius: 8px;
+}
+
+.theme-pastel .vault-tree-item:hover {
+  background: #efe9d8;
+}
+
+.theme-pastel .vault-tree-item.active {
+  background: #e3e8ff;
+  color: #4a5ac8;
+}
+
+.theme-pastel .vault-action-icon-btn:hover {
+  background: #efe9d8;
+}
+
+/* --- Page navigator pill --- */
+.theme-pastel .page-navigator-bar {
+  background: #fffdf7;
+  border-color: #e9e2cf;
+  border-radius: 24px;
+  box-shadow: 0 6px 20px rgba(108, 123, 214, 0.12);
+}
+
+.theme-pastel .nav-page-btn {
+  background: #f6f2e6;
+  border-color: #e3dcc6;
+  border-radius: 8px;
+}
+
+.theme-pastel .nav-page-btn:hover:not(:disabled) {
+  background: #e3e8ff;
+  border-color: #b9c1f5;
+}
+
+.theme-pastel .nav-icon-btn:hover {
+  background: #f0ecdd;
+}
+
+.theme-pastel .nav-icon-btn.active {
+  background: #e3e8ff;
+  color: #4a5ac8;
+}
+
+.theme-pastel .page-thumbnail-drawer {
+  border-color: #e9e2cf;
+  border-radius: 16px;
+}
+
+/* --- Nút thêm ảnh --- */
+.theme-pastel .page-add-image-btn {
+  background: rgba(255, 253, 247, 0.95);
+  border-color: #d9dcf5;
+  color: #5b637e;
+  border-radius: 16px;
+}
+
+.theme-pastel .page-add-image-btn:hover {
+  background: #eef0ff;
+  border-color: #8b9bf5;
+  color: #4a5ac8;
+}
+
+/* --- Markdown / Code editors --- */
+.theme-pastel .pure-markdown-editor-container,
+.theme-pastel .code-editor-container {
+  background: #f6f3ea;
+}
+
+.theme-pastel .md-editor-header,
+.theme-pastel .code-editor-header {
+  background: #fffdf7;
+  border-bottom: 1px solid #e9e2cf;
+}
+
+.theme-pastel .md-raw-textarea,
+.theme-pastel .code-textarea {
+  background: #fffdf6;
+  color: #424b64;
+}
+
+.theme-pastel .code-gutter-line-numbers {
+  background: #f3efe1;
+}
+
+.theme-pastel .code-status-bar {
+  background: #efe9d8;
+  color: #6b7390;
+}
+
+.theme-pastel .view-mode-btn.active {
+  background: #e3e8ff;
+  color: #4a5ac8;
+}
+
+/* --- Modals --- */
+.theme-pastel .modal-dialog,
+.theme-pastel .folder-picker-modal,
+.theme-pastel .settings-modal-card {
+  background: #fffdf7;
+  border: 1px solid #e9e2cf;
+  border-radius: 16px;
+}
+
+.theme-pastel .modal-footer,
+.theme-pastel .settings-footer {
+  background: #f6f2e6;
+}
+
+.theme-pastel .file-dropdown-menu {
+  border-color: #e9e2cf;
+  border-radius: 12px;
+}
+
+.theme-pastel .dropdown-item:hover {
+  background: #f0ecdd;
+}
+
+/* --- Washi tape trên textbox đang chọn (cute như sticker note) --- */
+.theme-pastel .notebook-textbox.selected:not(.is-framed)::before,
+.theme-pastel .notebook-textbox.editing:not(.is-framed)::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  width: 92px;
+  height: 22px;
+  background: linear-gradient(to bottom, rgba(139, 155, 245, 0.55), rgba(139, 155, 245, 0.45));
+  border-left: 1px dashed rgba(255, 255, 255, 0.7);
+  border-right: 1px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.theme-pastel .notebook-textbox.selected,
+.theme-pastel .notebook-textbox.is-selected {
+  background: rgba(255, 253, 246, 0.85);
+  box-shadow: 0 0 0 1.5px #8b9bf5, 0 8px 22px rgba(108, 123, 214, 0.12);
+  border-radius: 12px;
+}
+
+.theme-pastel .notebook-textbox.editing,
+.theme-pastel .notebook-textbox.is-editing {
+  box-shadow: 0 0 0 1.5px #6c7bd6, 0 8px 22px rgba(108, 123, 214, 0.14);
+  border-radius: 12px;
+}
+
+/* --- Doodles pastel trang trí góc workspace --- */
+.pastel-doodles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.pastel-doodle {
+  position: absolute;
+  opacity: 0.9;
+  user-select: none;
+}
+
+.pastel-doodle.doodle-cloud {
+  left: 5%;
+  top: 7%;
+  width: 110px;
+  opacity: 0.8;
+}
+
+.pastel-doodle.doodle-quote {
+  left: 2%;
+  bottom: 7%;
+  width: 300px;
+  opacity: 0.9;
+}
+
+.pastel-doodle.doodle-plant-quote {
+  left: 1.5%;
+  bottom: 6%;
+  width: 110px;
+  opacity: 0.9;
+}
+
+.pastel-doodle.doodle-quote-text {
+  left: calc(1.5% + 100px);
+  bottom: 9%;
+  font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+  color: #7b86b8;
+  font-size: 17px;
+  line-height: 1.5;
+  transform: rotate(-4deg);
+}
+
+.pastel-doodle.doodle-flower {
+  right: 11%;
+  bottom: 11%;
+  width: 58px;
+  opacity: 0.9;
+}
+
+.pastel-doodle.doodle-sparkles {
+  right: 16%;
+  top: 24%;
+  width: 56px;
+}
+
+.pastel-doodle.slogan-br {
+  right: 26px;
+  bottom: 90px;
+  font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+  color: #9aa3d6;
+  font-size: 19px;
+  line-height: 1.35;
+  transform: rotate(9deg);
+  text-align: center;
+}
+

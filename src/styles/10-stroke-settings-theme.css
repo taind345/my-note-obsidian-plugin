@@ -1,0 +1,538 @@
+/* 10-stroke-settings-theme.css — auto-split from App.css (3469–4005). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   5-Level Stroke Width, Pen Style Toggle & Authentic Eraser Cursor
+   ========================================================================== */
+.stroke-level-selector {
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.stroke-level-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  height: 24px;
+  min-width: 22px;
+  padding: 0 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: background 0.1s ease;
+}
+
+.stroke-level-btn:hover {
+  background: #e2e8f0;
+}
+
+.stroke-level-btn.active {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stroke-level-btn .level-dot {
+  background: #1e293b;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.stroke-level-btn .level-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pen-style-toggle-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.pen-style-toggle-btn:hover {
+  background: #e2e8f0;
+}
+
+.pen-style-toggle-btn.active {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
+/* Authentic Eraser Cursor when Eraser tool is active */
+.page-drawing-layer.is-eraser-mode,
+.drawing-canvas.is-eraser-mode,
+.is-eraser-mode {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23fbcfe8' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21' /%3E%3Cpath d='M22 21H7' stroke='%23334155' /%3E%3Cpath d='m5 11 9 9' stroke='%23334155' /%3E%3C/svg%3E") 4 20, crosshair !important;
+}
+
+.link-pin {
+  font-size: 13px;
+  margin-right: 2px;
+  display: inline-block;
+  opacity: 0.9;
+}
+
+.link-external-icon {
+  font-size: 12px;
+  margin-left: 2px;
+  display: inline-block;
+  opacity: 0.8;
+  font-weight: 700;
+}
+
+/* Floating Expand Sidebar Button when sidebar is collapsed */
+.sidebar-expand-floating-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.sidebar-expand-floating-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: scale(1.05);
+}
+
+/* ==========================================================================
+   Spread Placeholder Sheet (aligns odd page to left)
+   ========================================================================== */
+.notebook-sheet-placeholder {
+  flex-shrink: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* ==========================================================================
+   Settings & Shortcuts Modal
+   ========================================================================== */
+.settings-modal-overlay {
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.settings-modal-card {
+  width: 580px;
+  max-width: 92vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff !important;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+}
+
+.settings-header {
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.settings-icon {
+  color: #3b82f6;
+}
+
+.settings-tabs-strip {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  padding: 0 12px;
+  gap: 4px;
+}
+
+.settings-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.settings-tab-btn:hover {
+  color: #0f172a;
+}
+
+.settings-tab-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #ffffff;
+}
+
+.settings-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  max-height: 55vh;
+}
+
+.shortcuts-table-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shortcuts-instruction-hint {
+  font-size: 12px;
+  color: #64748b;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.shortcuts-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.shortcuts-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.action-name-cell {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.key-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: var(--font-cascadia, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.key-badge-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.key-badge-btn.recording {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #2563eb;
+  animation: pulse 1s infinite;
+}
+
+.edit-rebind-btn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.edit-rebind-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.cancel-rebind-btn {
+  padding: 3px 8px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.general-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.settings-select {
+  min-width: 170px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 12px;
+  color: #1e293b;
+  background: #ffffff;
+}
+
+/* Switch toggle */
+.settings-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.settings-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: 0.2s;
+  border-radius: 24px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.settings-toggle-switch input:checked + .switch-slider {
+  background-color: #2563eb;
+}
+
+.settings-toggle-switch input:checked + .switch-slider:before {
+  transform: translateX(20px);
+}
+
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.footer-right-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-defaults-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reset-defaults-btn:hover {
+  color: #dc2626;
+}
+
+.save-settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Sleek Header Toolbar Refinements */
+.compact-icon-btn.flip-toggle-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.compact-icon-btn.settings-btn {
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 0 7px;
+  height: 28px;
+}
+
+.compact-icon-btn.settings-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   Theme Picker (Settings > General > Giao diện màu)
+   ========================================================================== */
+.theme-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.theme-option-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.theme-option-card:hover {
+  border-color: #94a3b8;
+}
+
+.theme-option-card.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.theme-swatches {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.theme-swatches .sw {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin-left: -7px;
+}
+
+.theme-swatches .sw:first-child {
+  margin-left: 0;
+}
+
+.theme-preview-default .sw-bg { background: #e5e5e5; }
+.theme-preview-default .sw-paper { background: #ffffff; }
+.theme-preview-default .sw-accent { background: #2563eb; }
+
+.theme-preview-pastel .sw-bg { background: #f4f1e8; }
+.theme-preview-pastel .sw-paper { background: #fffdf6; }
+.theme-preview-pastel .sw-accent { background: #7c8cf8; }
+
+.theme-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-option-text strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.theme-option-text span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.theme-check {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+

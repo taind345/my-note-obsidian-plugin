@@ -1,0 +1,226 @@
+/* 03-workspace-sheet.css — auto-split from App.css (520–744). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Workspace (Desk / Viewport) & View Modes
+   ========================================================================== */
+.notebook-workspace {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 24px 140px 24px;
+  position: relative;
+  z-index: 1;
+  scroll-behavior: smooth;
+}
+
+.notebook-desk {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.1s ease-out;
+}
+
+.notebook-desk.spread-view {
+  gap: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  perspective: 1600px;
+}
+
+.notebook-desk.single-view {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+}
+
+.notebook-workspace.mode-single-vertical {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.notebook-desk.vertical-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding-bottom: 80px;
+}
+
+.notebook-desk.vertical-view .page-wrapper {
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
+}
+
+/* 3D Book Page Flip Animation - 2-Phase Silky Physical Turn */
+.notebook-desk.spread-view {
+  gap: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  perspective: 2600px;
+  transform-style: preserve-3d;
+}
+
+/* Phase 1: Closing / Turning page curls up to 90 degrees toward spine */
+.notebook-desk.flipping-next.flip-phase-closing .notebook-sheet.has-spine-left {
+  transform-origin: left center;
+  animation: notebookCurlNext 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 50;
+  box-shadow: -15px 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.notebook-desk.flipping-prev.flip-phase-closing .notebook-sheet.has-spine-right {
+  transform-origin: right center;
+  animation: notebookCurlPrev 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 50;
+  box-shadow: 15px 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* Phase 2: Opening / Incoming page uncurls from 90 degrees to flat */
+.notebook-desk.flipping-next.flip-phase-opening .notebook-sheet.has-spine-right {
+  transform-origin: right center;
+  animation: notebookUncurlNext 0.18s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  z-index: 50;
+  box-shadow: 15px 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.notebook-desk.flipping-prev.flip-phase-opening .notebook-sheet.has-spine-left {
+  transform-origin: left center;
+  animation: notebookUncurlPrev 0.18s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  z-index: 50;
+  box-shadow: -15px 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes notebookCurlNext {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(-88deg) scale(0.97);
+  }
+}
+
+@keyframes notebookUncurlNext {
+  0% {
+    transform: rotateY(88deg) scale(0.97);
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes notebookCurlPrev {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(88deg) scale(0.97);
+  }
+}
+
+@keyframes notebookUncurlPrev {
+  0% {
+    transform: rotateY(-88deg) scale(0.97);
+  }
+  100% {
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+/* ==========================================================================
+   Notebook Sheet (Paper)
+   ========================================================================== */
+.notebook-sheet {
+  position: relative;
+  background-color: var(--paper-bg);
+  overflow: hidden;
+  user-select: none;
+  font-family: var(--current-font, var(--font-cascadia));
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.notebook-desk.flipping-next,
+.notebook-desk.flipping-prev {
+  pointer-events: none;
+}
+
+/* Ruled Lines Background via CSS */
+.notebook-sheet.pattern-ruled {
+  background-color: #ffffff;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 31px,
+    var(--ruled-line-color, rgba(186, 215, 248, 0.85)) 31px,
+    var(--ruled-line-color, rgba(186, 215, 248, 0.85)) 32px
+  );
+  background-size: 100% 32px;
+  background-position: 0 0;
+}
+
+/* Grid Pattern */
+.notebook-sheet.pattern-grid {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(to right, rgba(203, 213, 225, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(203, 213, 225, 0.5) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Dot Pattern */
+.notebook-sheet.pattern-dots {
+  background-color: #ffffff;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.7) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Blank Pattern */
+.notebook-sheet.pattern-blank {
+  background-color: #ffffff;
+}
+
+/* Vertical Pink/Red Margin line like real lined paper */
+.notebook-margin-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 72px;
+  width: 2px;
+  border-left: 1px solid var(--margin-line-color);
+  border-right: 1px solid var(--margin-line-color);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top margin divider line */
+.notebook-header-line {
+  position: absolute;
+  top: var(--top-margin);
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--header-line-color);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Center spine crease shadows for 2-page spread mode */
+.notebook-sheet.has-spine-right {
+  border-right: 1px solid #cbd5e1;
+  box-shadow: inset -12px 0 18px -10px var(--spine-shadow);
+}
+
+.notebook-sheet.has-spine-left {
+  border-left: 1px solid #cbd5e1;
+  box-shadow: inset 12px 0 18px -10px var(--spine-shadow);
+}
+
+/* Page footer */
+.notebook-footer {
+  position: absolute;
+  bottom: 12px;
+  right: 24px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 2;
+}
+

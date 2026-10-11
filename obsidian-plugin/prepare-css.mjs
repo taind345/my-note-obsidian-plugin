@@ -8,7 +8,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.css'), 'utf-8')
+const stylesDir = path.join(__dirname, '..', 'src', 'styles')
+let src = ''
+if (fs.existsSync(stylesDir)) {
+  // CSS thật đã tách thành styles/01–13 — concat theo thứ tự để giữ cascade
+  const files = fs.readdirSync(stylesDir).filter((f) => f.endsWith('.css')).sort()
+  src = files.map((f) => fs.readFileSync(path.join(stylesDir, f), 'utf-8')).join('\n')
+} else {
+  // Fallback file gộp cũ
+  src = fs.readFileSync(path.join(__dirname, '..', 'src', 'App.css'), 'utf-8')
+}
 
 let css = src
 // 1. @font-face chỉ còn local(...) — giữ nguyên font stack fallback

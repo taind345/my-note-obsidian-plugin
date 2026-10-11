@@ -1,0 +1,236 @@
+/* 04-textbox.css — auto-split from App.css (745–979). Thứ tự @import trong App.css giữ nguyên cascade. */
+/* ==========================================================================
+   Text Box Layer & Obsidian-style Direct Editing
+   ========================================================================== */
+.textbox-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Chế độ bút/vẽ: khóa tạm thời mọi textbox (chỉ vẽ, không select/edit/di chuyển) */
+.textbox-layer.no-interact .notebook-textbox,
+.textbox-layer.no-interact .notebook-textbox * {
+  pointer-events: none !important;
+}
+
+.notebook-textbox {
+  position: absolute;
+  min-height: 32px;
+  cursor: text;
+  user-select: text;
+  border-radius: 6px;
+  text-align: left;
+  font-family: var(--current-font, var(--font-cascadia));
+  transition: background 0.1s ease, box-shadow 0.15s ease;
+  pointer-events: auto;
+  padding: 6px 12px;
+}
+
+/* Subtle left hover grip handle */
+.textbox-hover-grip {
+  position: absolute;
+  left: -18px;
+  top: 6px;
+  width: 14px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.notebook-textbox:hover .textbox-hover-grip,
+.notebook-textbox.selected .textbox-hover-grip,
+.notebook-textbox.is-selected .textbox-hover-grip {
+  opacity: 1;
+}
+
+.textbox-hover-grip:hover {
+  color: #0f172a;
+}
+
+/* When selected / editing: clean and minimal, NO bulky popup toolbars */
+.notebook-textbox.selected,
+.notebook-textbox.is-selected {
+  background: rgba(241, 245, 249, 0.35);
+  box-shadow: 0 0 0 1.5px #60a5fa;
+}
+
+.notebook-textbox.editing,
+.notebook-textbox.is-editing {
+  background: transparent;
+  box-shadow: 0 0 0 1.5px #3b82f6;
+}
+
+.notebook-textbox.dragging,
+.notebook-textbox.is-dragging {
+  opacity: 0.85;
+  outline: 1.5px dashed #2563eb;
+  cursor: grabbing;
+}
+
+/* Resize handle on right */
+.textbox-resize-handle {
+  position: absolute;
+  right: -6px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: ew-resize;
+  background: transparent;
+}
+
+.textbox-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+/* Obsidian Markdown Formatting Toolbar right above / below text box */
+.obsidian-toolbar-wrapper {
+  position: absolute;
+  left: 0;
+  z-index: 60;
+  pointer-events: auto;
+}
+
+.obsidian-toolbar-wrapper.placement-above {
+  top: -44px;
+  animation: fadeInDown 0.12s ease-out;
+}
+
+.obsidian-toolbar-wrapper.placement-below {
+  top: auto;
+  bottom: -46px;
+  animation: fadeInUp 0.12s ease-out;
+}
+
+.obsidian-markdown-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 3px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.md-toolbar-btn {
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  transition: all 0.1s ease;
+}
+
+.md-toolbar-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.md-toolbar-btn.wikilink-btn {
+  color: #10b981;
+}
+
+.md-toolbar-btn.wikilink-btn:hover {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.md-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+  margin: 0 3px;
+}
+
+/* Tool Lock & Hand-drawn Toggle Buttons */
+.tool-button.lock-button.active.locked {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.handdrawn-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  transition: all 0.12s ease;
+}
+
+.handdrawn-toggle-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.handdrawn-toggle-btn:hover {
+  background: #e2e8f0;
+}
+
+/* Curved Arrow Handle */
+.excalidraw-curve-handle {
+  animation: pulseCurve 1.5s infinite alternate;
+}
+
+@keyframes pulseCurve {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+
+/* Text box content & editor */
+.textbox-content-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+/* Seamless Obsidian Textarea Editor */
+.obsidian-editor {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #0f172a;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+}
+
