@@ -6,6 +6,7 @@ import { drawSmoothStroke } from '@/shared/lib/smoothing'
 import { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from '@/shared/lib/lineSnap'
 import { canvasBackingScale } from '../lib/canvasResolution'
 import { getElementSeed } from '../lib/elementSeed'
+import { finalizeStrokePoints } from '../lib/simplifyStroke'
 import { normalizeRect, isClickRect, marqueeSelect, toggleInList, rectsIntersect } from '@/shared/lib/selection'
 import { Trash2, Copy, Lock, Unlock, ArrowUp, ArrowDown, Frame } from 'lucide-react'
 
@@ -861,15 +862,10 @@ export function PageCanvas({
       const rawPoints = currentPointsRef.current
       if (rawPoints.length < 2) return
 
-      // Filter only duplicate points (< 0.8px apart) to prevent redundant data,
-      // without destructive simplification so the stroke does NOT shift or morph when released!
-      const cleanPoints: Point[] = [rawPoints[0]]
-      for (let i = 1; i < rawPoints.length; i++) {
-        const prev = cleanPoints[cleanPoints.length - 1]
-        if (Math.hypot(rawPoints[i].x - prev.x, rawPoints[i].y - prev.y) >= 0.8) {
-          cleanPoints.push(rawPoints[i])
-        }
-      }
+      // Chốt nét: gọn points (RDP <0.7px lệch tối đa, mắt không thấy khác) +
+      // bỏ pressure/time (render chỉ cần x/y) → file nhẹ ~4-5x, undo/save nhanh theo.
+      // Preview lúc kéo vẫn dùng points thô nên cảm giác vẽ không đổi.
+      const cleanPoints: Point[] = finalizeStrokePoints(rawPoints)
 
       const newElem: DrawingElement = {
         id: elemId,
