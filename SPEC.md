@@ -192,6 +192,10 @@ pointerdown → StrokeStream.push → [mỗi frame] snapshot() → preview (draw
   zoom/style → full redraw cho đúng.
 - **Backing hợp nhất** (`canvasBackingScale`: dpr×zoom, min 1 max 4x): 2 canvas cùng
   độ phân giải → preview/finished pixel-identical, zoom 2x hidpi vẫn nét.
+- **Defer paint bitmap** (kiểu paint virtualization của Excalidraw): bitmap tĩnh chỉ
+  vẽ khi trang vào/kề viewport (IO root viewport + overscan 800px); DOM vẫn mount
+  đủ nên layout/select/export id không đổi. Mở vở 6 trang chỉ vẽ ~2 trang thấy
+  được. Export PDF luôn render offscreen (node live có thể defer-blank).
 - **Seed ổn định** (`getElementSeed` theo id + `activeDrawingSeedRef` lúc vẽ → gán
   vào element lúc commit): rough.js ra cùng hình ở preview/static/export/PDF.
 - **Số thật** (Note 2: 6 trang, 2028 nét, 57.865 điểm): points 6MB → ~0.6MB;

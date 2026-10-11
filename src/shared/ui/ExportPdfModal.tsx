@@ -53,8 +53,9 @@ export function ExportPdfModal({
     setErrorMessage(null)
 
     const targetPages = rangeMode === 'all' ? pages : [activePage]
-    // Offscreen render dùng chung service (web + plugin): node gắn vào mountRoot
-    // để CSS áp đúng (plugin scope dưới host), canvas backing theo resolution.
+    // Luôn render offscreen (không chụp node đang mount): canvas tĩnh defer
+    // paint khi ngoài viewport nên node live có thể còn trắng → export thiếu nét.
+    // Offscreen qua cùng routine + seed nên pixels giống hệt màn hình.
     const pixelRatioMap: Record<ExportResolution, number> = {
       low: 1.0,
       medium: 1.5,

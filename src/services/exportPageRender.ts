@@ -15,21 +15,16 @@ export interface OffscreenRenderOptions {
 }
 
 /**
- * Dựng 1 trang vở thành DOM (ưu tiên dùng node đang mount thật, không thì
- * clone offscreen) để html-to-image chụp ra PDF. Dùng CHUNG routine + seed
- * với màn hình (rough.js + drawSmoothStroke) nên PDF giống hệt những gì thấy.
+ * Dựng 1 trang vở thành DOM offscreen để html-to-image chụp ra PDF (luôn
+ * offscreen, không chụp node live — node live có thể defer paint khi ngoài
+ * viewport). Dùng CHUNG routine + seed với màn hình (rough.js + drawSmoothStroke)
+ * nên PDF giống hệt những gì thấy.
  */
 export async function renderOffscreenPageSheet(
   page: PageData,
   opts: OffscreenRenderOptions
 ): Promise<HTMLElement> {
   const { pixelRatio, mountRoot } = opts
-  // Trang đang hiển thị thật thì chụp luôn (khỏi clone)
-  const existing = document.getElementById(`page-sheet-${page.id}`)
-  if (existing) {
-    return existing
-  }
-
   const mount = mountRoot ?? document.body
   const offscreenContainer = document.createElement('div')
   offscreenContainer.id = `offscreen-export-${page.id}`

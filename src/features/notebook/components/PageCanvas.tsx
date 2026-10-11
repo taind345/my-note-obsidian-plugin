@@ -330,6 +330,7 @@ export function PageCanvas({
     // active chỉ chứa nét đang vẽ dở, mà lúc đó elements không đổi nên hàm này
     // không chạy; mọi đường commit đều đi qua đây sau khi setPages.
     setupCtx(activeCanvasRef.current)
+    hasFullPaintRef.current = true
   }, [elements, handDrawnStyle, canvasBacking])
 
   // Vẽ lại canvas tĩnh, throttle theo frame: kéo nhóm nhiều object liên tục
@@ -338,6 +339,10 @@ export function PageCanvas({
   // Nét vừa commit tăng dần (đã có trên bitmap tĩnh) → effect bỏ qua full redraw.
   // Ghi cả backing + style lúc vẽ để zoom/đổi style là vẽ lại đủ (bitmap cũ sai scale).
   const paintedIncrementalRef = useRef<{ id: string; backing: number; rough: boolean } | null>(null)
+  // Static đã vẽ đủ 1 lần chưa (mount paint hoặc full redraw). Commit tăng dần
+  // chỉ hợp lệ khi bitmap đã đủ — chưa đủ thì để effect full redraw (tránh trường
+  // hợp vẽ trên bitmap trắng rồi skip, mất nét cũ vĩnh viễn).
+  const hasFullPaintRef = useRef(false)
 
   /**
    * Commit 1 nét mới kiểu Excalidraw (ShapeCache): vẽ thẳng nét đó lên bitmap
@@ -345,17 +350,48 @@ export function PageCanvas({
    * với full redraw nên pixels giống hệt; preview dọn cùng tick → liền mạch.
    */
   const commitNewElement = (newElem: DrawingElement) => {
-    const canvas = staticCanvasRef.current
-    const ctx = setupCtx(canvas, canvasBacking, false)
-    if (ctx && canvas) {
-      drawStaticElement(ctx, rough.canvas(canvas), newElem, handDrawnStyle)
-      paintedIncrementalRef.current = { id: newElem.id, backing: canvasBacking, rough: handDrawnStyle }
+    // Chỉ tăng dần khi bitmap đã đủ (kiểu ShapeCache): chưa đủ thì để effect
+    // full redraw lo (đúng trong mọi race mount/commit).
+    if (hasFullPaintRef.current) {
+      const canvas = staticCanvasRef.current
+      const ctx = setupCtx(canvas, canvasBacking, false)
+      if (ctx && canvas) {
+        drawStaticElement(ctx, rough.canvas(canvas), newElem, handDrawnStyle)
+        paintedIncrementalRef.current = { id: newElem.id, backing: canvasBacking, rough: handDrawnStyle }
+      }
     }
     setupCtx(activeCanvasRef.current)
     onAddElement(newElem)
   }
 
+  // Defer bitmap tĩnh: chỉ vẽ khi trang vào/kề viewport (IO root viewport +
+  // overscan 800px — đúng dù scroller là khung trong hay container ngoài).
+  // DOM (giấy/textbox/ảnh/selection/export id) vẫn mount đủ nên layout/select
+  // không đổi; chỉ bitmap nét vẽ là đợi. Mở file 6 trang chỉ vẽ ~2 trang thấy
+  // được ngay, còn lại vẽ khi cuộn tới (kiểu paint virtualization của Excalidraw).
+  const [paintReady, setPaintReady] = useState(false)
+  const pageWrapRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
+    const el = pageWrapRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setPaintReady(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setPaintReady(true)
+          io.disconnect()
+        }
+      },
+      { root: null, rootMargin: '800px 0px', threshold: 0 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!paintReady) return
     if (redrawQueued.current) return
     redrawQueued.current = true
     const raf = requestAnimationFrame(() => {
@@ -381,7 +417,7 @@ export function PageCanvas({
       cancelAnimationFrame(raf)
       redrawQueued.current = false
     }
-  }, [redrawStaticCanvas, elements, handDrawnStyle, canvasBacking])
+  }, [redrawStaticCanvas, elements, handDrawnStyle, canvasBacking, paintReady])
 
   // Get pointer coordinates relative to the page canvas (chia scale khi zoom)
   const getCanvasCoords = (e: React.PointerEvent | PointerEvent | React.MouseEvent): Point => {
@@ -1333,6 +1369,7 @@ export function PageCanvas({
 
   return (
     <div
+      ref={pageWrapRef}
       className={`page-drawing-layer ${
         activeTool !== 'select' && activeTool !== 'text' ? 'is-active-drawing' : ''
       } ${activeTool === 'eraser' ? 'is-eraser-mode' : ''}`}
