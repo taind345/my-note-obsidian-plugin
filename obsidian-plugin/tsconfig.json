@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/**/*",
+    "../src/types/notebook.ts",
+    "../src/utils/markdown.ts",
+    "../src/utils/debounce.ts",
+    "../src/utils/imagePaste.ts",
+    "../src/utils/selection.ts",
+    "../src/utils/smoothing.ts",
+    "../src/utils/lineSnap.ts",
+    "../src/utils/fonts.ts",
+    "../src/utils/tauriFs.ts",
+    "../src/services/markdownFile.ts",
+    "../src/services/storage.ts",
+    "../src/components/NotebookPage.tsx",
+    "../src/components/NotebookTextBox.tsx",
+    "../src/components/PageCanvas.tsx",
+    "../src/components/PageImageLayer.tsx",
+    "../src/components/PageNavigator.tsx",
+    "../src/components/ObsidianMarkdownToolbar.tsx",
+    "../src/components/ExcalidrawPageCanvas.tsx"
+  ]
+}

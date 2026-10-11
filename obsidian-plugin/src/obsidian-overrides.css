@@ -1,0 +1,128 @@
+/* Layout riêng cho view vở trong Obsidian (không dùng layout full-app của web) */
+.mybook-obsidian-host {
+  height: 100%;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--desk-bg, #e5e5e5);
+  color: var(--text-main, #0f172a);
+}
+
+.mybook-loading {
+  padding: 24px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.mybook-render-error {
+  margin: 24px;
+  padding: 16px 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #991b1b;
+  font-size: 13px;
+  max-width: 640px;
+}
+
+.mybook-render-error pre {
+  margin-top: 8px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #fff;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.mybook-notebook-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mybook-notebook-view .header-center-tools {
+  margin: 8px auto;
+}
+
+.mybook-pages-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 8px 80px 8px;
+}
+
+/* Lớp bọc scale (transform KHÔNG nằm trên khung cuộn để không vỡ scroll) */
+.mybook-pages-fitwrap {
+  width: max-content;
+  max-width: none;
+  flex-shrink: 0;
+}
+
+.mybook-page-wrap {
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
+}
+
+/* Toolbar nằm TRONG khung cuộn + sticky: cuộn đâu cũng dính trên cùng.
+   margin auto: vừa thì căn giữa, tràn thì bám mép (không bị đẩy lệch). */
+.mybook-pages-scroll > .header-center-tools {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  flex-shrink: 0;
+  margin: 8px auto 0 auto;
+  max-width: calc(100% - 16px);
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.mybook-notebook-view .header-center-tools {
+  flex-shrink: 0;
+}
+
+/* Ô nhập text chỉ 1 khung ngoài: tắt mọi viền/outline mặc định của Obsidian */
+.mybook-obsidian-host .notebook-textbox textarea,
+.mybook-obsidian-host .notebook-textbox textarea:focus,
+.mybook-obsidian-host .notebook-textbox textarea:focus-visible,
+.mybook-obsidian-host .live-line-edit,
+.mybook-obsidian-host .live-line-edit:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.zoom-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  min-width: 44px;
+  text-align: center;
+}
+
+/* Ẩn decor cần asset /doodles (không ship theo plugin) — giữ washi + sparkle text */
+.mybook-obsidian-host .sheet-watermark,
+.mybook-obsidian-host .frame-decor,
+.mybook-obsidian-host .pastel-doodles,
+.mybook-obsidian-host .tabbar-mountain-doodle,
+.mybook-obsidian-host .sidebar-pastel-doodle {
+  display: none !important;
+}
+
+.mybook-obsidian-host .notebook-textbox.is-framed .obsidian-markdown-body h1:first-child {
+  background-image: none !important;
+}
+
+/* Toolbar mini gọn trong panel Obsidian */
+.mybook-mini-toolbar {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}

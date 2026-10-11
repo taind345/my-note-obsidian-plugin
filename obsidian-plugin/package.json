@@ -1,0 +1,17 @@
+{
+  "name": "mybook-notebook-obsidian",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MyBook physical notebook pages (.mynote.md) inside Obsidian",
+  "scripts": {
+    "build": "node prepare-css.mjs && node esbuild.config.mjs && node scope-css.mjs",
+    "dev": "node prepare-css.mjs && node esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "install-to-vault": "node install-to-vault.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.14.4",
+    "typescript": "^7.0.2"
+  }
+}

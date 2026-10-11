@@ -1,0 +1,8 @@
+node_modules/
+main.js
+main.css
+styles.css
+src/app.obsidian.css
+*.woff
+*.woff2
+*.ttf

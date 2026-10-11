@@ -1,0 +1,10 @@
+{
+  "id": "mybook-notebook",
+  "name": "MyBook Notebook",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Xem và sửa trang vở vật lý MyBook (.mynote.md): textbox markdown, vẽ tay, ảnh paste, select đa đối tượng.",
+  "author": "MyBook",
+  "authorUrl": "https://github.com/anomalyco/opencode",
+  "isDesktopOnly": false
+}
