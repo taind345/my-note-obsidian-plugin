@@ -56,7 +56,9 @@ nhờ alias), lucide, markdown-it, katex, roughjs, idb-keyval. External: `obsidi
 ```
 click .mynote.md
   → Obsidian mở markdown view (đuôi sau chấm cuối là .md, registerExtensions không khớp)
-  → event file-open → đợi 80ms cho view gán file xong
+  → event file-open → poll mỗi frame tới khi view gán file xong (thay timeout 80ms
+    cố định) → xử lý TRƯỚC khi browser paint nên tab thừa bị dọn/convert khi chưa
+    kịp vẽ — không chớp tab. Timeout 500ms thì bỏ qua.
   → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì focus về đó + dọn tab thừa
     (đổi tab markdown thừa thành vở tại chỗ rồi dọn leaf cũ, chỉ khi convert thành công);
     chưa có thì đổi leaf markdown đang hiển thị đúng file sang view vở (tìm leaf

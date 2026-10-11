@@ -52,6 +52,8 @@
     menu, command đều focus về leaf cũ + dọn tab thừa, không đẻ tab mới. Tìm leaf
     theo file đang hiển thị, KHÔNG đoán bằng `getMostRecentLeaf` (sidebar focus làm
     lệch active leaf → convert nhầm). Chỉ dọn leaf cũ khi convert thành công.
+    Settle theo frame (`settleFileOpen` rAF-poll, timeout 500ms)
+    để xử lý trước khi paint — không dùng setTimeout cố định (gây chớp tab).
 15. **`useFitScale.ts` ĐÃ XÓA** — thay bằng tính toán tường minh (history: nhiều vòng fix
     layout gây thêm lỗi; user yêu cầu rollback toàn bộ scale, hiện tại chỉ còn zoom tay).
     Đừng reintroduce auto-fit nếu chưa đọc kỹ mục 3 bên dưới.
