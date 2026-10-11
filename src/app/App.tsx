@@ -54,6 +54,30 @@ import { useNotebookHistory } from '@/features/notebook/hooks/useNotebookHistory
 import { useVault } from './hooks/useVault'
 import { MynoteWorkspace } from './components/MynoteWorkspace'
 
+/** Chuẩn hóa path vault để so khớp tab (tránh lệch trailing slash) */
+function normalizeVaultPath(p: string): string {
+  return (p || '').trim().replace(/\/+$/, '')
+}
+
+/**
+ * Tab trắng tinh tái dùng được khi mở file (kiểu transient tab của Obsidian):
+ * chưa gắn file + chưa dirty + chưa có nội dung người dùng. Tab fallback có
+ * sẵn nội dung mẫu nên không bao giờ lọt vào đây → không mất dữ liệu.
+ */
+function isPristineTab(tab: EditorTab): boolean {
+  if (tab.path || tab.isDirty) return false
+  if (tab.mode === 'mynote') {
+    const pages = tab.notebookData?.pages ?? []
+    return pages.every(
+      (p) =>
+        (p.textBoxes?.length ?? 0) === 0 &&
+        (p.drawings?.length ?? 0) === 0 &&
+        ((p.images ?? []).length ?? 0) === 0
+    )
+  }
+  return !(tab.content || '').trim()
+}
+
 export default function App() {
   const initialFallback = getDefaultFallbackNotebook()
 
@@ -227,26 +251,30 @@ export default function App() {
     hydrate()
   }, [])
 
+  // Đưa nội dung 1 tab mynote lên workspace (dùng chung cho chuyển tab + tái dùng tab)
+  const applyTabToWorkspace = useCallback((tab: EditorTab) => {
+    if (tab.mode !== 'mynote' || !tab.notebookData) return
+    setMeta(tab.notebookData.meta)
+    setPages(tab.notebookData.pages)
+    setCurrentPageIndex(0)
+    if (tab.notebookData.pages[0]?.pattern) {
+      setPaperPattern(tab.notebookData.pages[0].pattern)
+    } else if (tab.notebookData.meta?.settings?.defaultPattern) {
+      setPaperPattern(tab.notebookData.meta.settings.defaultPattern)
+    }
+    if (tab.notebookData.meta?.settings?.fontFamily) {
+      const tabFont =
+        tab.notebookData.meta.settings.fontFamily !== 'handwriting'
+          ? tab.notebookData.meta.settings.fontFamily
+          : 'cascadia'
+      setFontFamily(tabFont)
+    }
+  }, [])
+
   // Sync activeTab notebookData to local state when tab changes
   useEffect(() => {
-    if (activeTab?.mode === 'mynote' && activeTab.notebookData) {
-      setMeta(activeTab.notebookData.meta)
-      setPages(activeTab.notebookData.pages)
-      setCurrentPageIndex(0)
-      if (activeTab.notebookData.pages[0]?.pattern) {
-        setPaperPattern(activeTab.notebookData.pages[0].pattern)
-      } else if (activeTab.notebookData.meta?.settings?.defaultPattern) {
-        setPaperPattern(activeTab.notebookData.meta.settings.defaultPattern)
-      }
-      if (activeTab.notebookData.meta?.settings?.fontFamily) {
-        const tabFont =
-          activeTab.notebookData.meta.settings.fontFamily !== 'handwriting'
-            ? activeTab.notebookData.meta.settings.fontFamily
-            : 'cascadia'
-        setFontFamily(tabFont)
-      }
-    }
-  }, [activeTabId])
+    if (activeTab) applyTabToWorkspace(activeTab)
+  }, [activeTabId, applyTabToWorkspace])
 
   // Debounced Autosave for Physical Notebook
   const debouncedAutosave = useRef(
@@ -945,15 +973,16 @@ export default function App() {
 
   // Mở file vào pane phải (không đụng tab trái đang xem)
   const handleOpenFileForSplit = async (filePath: string) => {
-    const existing = tabs.find((t) => t.path === filePath)
+    const cleanPath = normalizeVaultPath(filePath)
+    const existing = tabs.find((t) => t.path && normalizeVaultPath(t.path) === cleanPath)
     if (existing) {
       if (existing.id !== activeTabId) enableSplitWith(existing.id)
       else setSplitPickerOpen(false)
       return
     }
     try {
-      const { content, name } = await readFileFromVault(filePath)
-      const mode = detectEditorMode(filePath, content)
+      const { content, name } = await readFileFromVault(cleanPath)
+      const mode = detectEditorMode(cleanPath, content)
       let tabData: Partial<EditorTab> = { content }
       if (mode === 'mynote') {
         const parsed = importNotebookFromMarkdown(content)
@@ -966,7 +995,7 @@ export default function App() {
       }
       const newTab: EditorTab = {
         id: `tab_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        path: filePath,
+        path: cleanPath,
         title: name,
         mode,
         isDirty: false,
@@ -996,16 +1025,18 @@ export default function App() {
 
   // 8. Open File into Tab
   const handleOpenFile = async (filePath: string, preferredMode?: EditorMode) => {
-    // Check if already open
-    const existing = tabs.find((t) => t.path === filePath)
+    const cleanPath = normalizeVaultPath(filePath)
+    if (!cleanPath) return
+    // TH1 (chuẩn Obsidian): file đã mở ở tab nào thì focus về tab đó, không mở thêm
+    const existing = tabs.find((t) => t.path && normalizeVaultPath(t.path) === cleanPath)
     if (existing) {
       setActiveTabId(existing.id)
       return
     }
 
     try {
-      const { content, name } = await readFileFromVault(filePath)
-      const mode = preferredMode || detectEditorMode(filePath, content)
+      const { content, name } = await readFileFromVault(cleanPath)
+      const mode = preferredMode || detectEditorMode(cleanPath, content)
 
       let tabData: Partial<EditorTab> = { content }
 
@@ -1020,9 +1051,27 @@ export default function App() {
         }
       }
 
+      // TH2 (chuẩn Obsidian): tab đang đứng là tab trắng tinh thì tái dùng nó
+      // thay vì đẻ tab mới mỗi lần click file
+      const active = tabs.find((t) => t.id === activeTabId)
+      if (active && isPristineTab(active)) {
+        const replaced: EditorTab = {
+          ...active,
+          path: cleanPath,
+          title: name,
+          mode,
+          isDirty: false,
+          content: mode === 'mynote' ? undefined : content,
+          notebookData: mode === 'mynote' ? tabData.notebookData : undefined,
+        }
+        setTabs((curr) => curr.map((t) => (t.id === active.id ? replaced : t)))
+        applyTabToWorkspace(replaced)
+        return
+      }
+
       const newTab: EditorTab = {
         id: `tab_${Date.now()}`,
-        path: filePath,
+        path: cleanPath,
         title: name,
         mode,
         isDirty: false,

@@ -173,7 +173,9 @@ kèm menu **Save as PDF** (in qua iframe ẩn).
 
 - Sidebar: cây thư mục (mở/đóng nhớ localStorage), lọc tên, CRUD + rename, đặt vault root,
   refresh; trượt mượt 0.28s (luôn mount, collapsed = width 0).
-- Tab: mở file (trùng path thì activate), tab trắng 3 loại, dirty dot.
+- Tab (chuẩn Obsidian): mở file đã mở ở tab nào thì focus về tab đó (so path
+  chuẩn hóa); mở file khác khi đang đứng ở tab trắng tinh (chưa path/dirty/nội
+  dung — `isPristineTab`) thì tái dùng tab đó thay vì đẻ tab mới.
 - Split view: nút chia → panel phải gọn (list tab mở + tìm file + tạo tab mới cho pane phải);
   mynote pane phải state độc lập, luôn cuộn dọc; 2 pane không bao giờ trùng tab.
 - Quick Open (`Ctrl+O`): fuzzy subsequence, ↑↓/Enter/Esc; nút `+` trên tab bar cũng mở nó
