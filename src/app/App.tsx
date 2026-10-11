@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import type {
   PageData,
@@ -9,7 +9,6 @@ import type {
   PageImageData,
   PaperPattern,
   ViewSpreadMode,
-  HistoryEntry,
   EditorTab,
   EditorMode,
   VaultFileItem,
@@ -30,8 +29,6 @@ import {
   readMarkdownFile,
 } from '@/services/markdownFile'
 import {
-  DEFAULT_VAULT_PATH,
-  listVault,
   readFileFromVault,
   writeFileToVault,
   createVaultItem,
@@ -39,44 +36,23 @@ import {
   renameVaultItem,
   detectEditorMode,
 } from '@/services/vaultService'
-import { HeaderToolbar } from '@/shared/ui/HeaderToolbar'
-import { NotebookPage } from '@/features/notebook/components/NotebookPage'
-import { PageNavigator } from '@/shared/ui/PageNavigator'
 import { ExportPdfModal } from '@/shared/ui/ExportPdfModal'
 import { ObsidianSidebar } from '@/features/vault/components/ObsidianSidebar'
 import { TabBar } from '@/features/workspace/components/TabBar'
 import { PureMarkdownEditor } from '@/features/markdown/components/PureMarkdownEditor'
 import { CodeEditor } from '@/features/markdown/components/CodeEditor'
 import { NewFileLinkModal } from '@/features/workspace/components/NewFileLinkModal'
-import { ThemeDoodles } from '@/shared/ui/ThemeDoodles'
 import { SettingsModal, DEFAULT_SHORTCUTS, type AppShortcuts, type AppTheme } from '@/shared/ui/SettingsModal'
-import { PAGE_WIDTH, PAGE_HEIGHT } from '@/shared/lib/lineSnap'
 import { debounce } from '@/shared/lib/debounce'
-import { setVaultFileIndex } from '@/shared/lib/tauriFs'
 import { loadFont, saveFont } from '@/shared/lib/fonts'
 import { SplitMynotePane } from '@/features/notebook/components/SplitMynotePane'
 import { QuickOpenModal } from '@/features/workspace/components/QuickOpenModal'
 import { SplitPicker } from '@/features/workspace/components/SplitPicker'
 import '@/App.css'
-const MAX_HISTORY = 50
-
-function matchShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
-  if (!shortcutStr) return false
-  const parts = shortcutStr.toLowerCase().split('+')
-  const hasCtrl = parts.includes('ctrl')
-  const hasAlt = parts.includes('alt')
-  const hasShift = parts.includes('shift')
-  const keyPart = parts[parts.length - 1]
-
-  if (hasCtrl && !(e.ctrlKey || e.metaKey)) return false
-  if (!hasCtrl && (e.ctrlKey || e.metaKey)) return false
-  if (hasAlt && !e.altKey) return false
-  if (!hasAlt && e.altKey) return false
-  if (hasShift && !e.shiftKey) return false
-  if (!hasShift && e.shiftKey) return false
-
-  return e.key.toLowerCase() === keyPart || (keyPart === 'space' && e.key === ' ')
-}
+import { matchShortcut } from '@/shared/lib/shortcuts'
+import { useNotebookHistory } from '@/features/notebook/hooks/useNotebookHistory'
+import { useVault } from './hooks/useVault'
+import { MynoteWorkspace } from './components/MynoteWorkspace'
 
 export default function App() {
   const initialFallback = getDefaultFallbackNotebook()
@@ -117,22 +93,12 @@ export default function App() {
     } catch {}
   }
 
-  // 1. Sidebar & Vault State
+  // 1. Sidebar & Vault State (vault logic nằm ở hooks/useVault)
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
     return params?.get('sidebar') === '0' ? false : true
   })
-  const [currentVaultPath, setCurrentVaultPath] = useState(
-    () => localStorage.getItem('mybook_vault_path') || DEFAULT_VAULT_PATH
-  )
-  const [vaultItems, setVaultItems] = useState<VaultFileItem[]>(() => {
-    try {
-      const cached = localStorage.getItem('mybook_cached_vault_items')
-      if (cached) return JSON.parse(cached)
-    } catch {}
-    return []
-  })
-  const [isLoadingVault, setIsLoadingVault] = useState(false)
+  const { currentVaultPath, vaultItems, isLoadingVault, vaultFiles, refreshVault } = useVault()
 
   // 2. Tabs State
   const [tabs, setTabs] = useState<EditorTab[]>(() => {
@@ -212,12 +178,6 @@ export default function App() {
   const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'saving' | 'dirty'>('saved')
   const dirtyPageIds = useRef<Set<string>>(new Set())
 
-  // Undo / Redo stacks
-  const undoStack = useRef<HistoryEntry[]>([])
-  const redoStack = useRef<HistoryEntry[]>([])
-  const [canUndo, setCanUndo] = useState(false)
-  const [canRedo, setCanRedo] = useState(false)
-
   // PDF Export Modal
   const [showExportModal, setShowExportModal] = useState(false)
 
@@ -226,29 +186,6 @@ export default function App() {
   const wheelDebounceRef = useRef<number>(0)
 
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0]
-
-  // Fetch Vault items from local filesystem (trả về true/false để modal báo lỗi)
-  const refreshVault = useCallback(async (dirPath = currentVaultPath): Promise<boolean> => {
-    const clean = dirPath.trim().replace(/\/+$/, '') || '/'
-    setIsLoadingVault(true)
-    try {
-      const data = await listVault(clean)
-      setCurrentVaultPath(clean)
-      setVaultItems(data.items)
-      localStorage.setItem('mybook_vault_path', clean)
-      localStorage.setItem('mybook_cached_vault_items', JSON.stringify(data.items))
-      return true
-    } catch (err) {
-      console.error('Failed to load vault items:', err)
-      return false
-    } finally {
-      setIsLoadingVault(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refreshVault(currentVaultPath)
-  }, [currentVaultPath, refreshVault])
 
   // Hydrate initial notebook from storage if available
   useEffect(() => {
@@ -367,97 +304,10 @@ export default function App() {
     [debouncedAutosave, meta, activeTab]
   )
 
-  // Undo / Redo History Management
-  const pushHistory = useCallback((pageId: string, pageData: PageData) => {
-    undoStack.current.push({
-      pageId,
-      textBoxes: JSON.parse(JSON.stringify(pageData.textBoxes)),
-      drawings: JSON.parse(JSON.stringify(pageData.drawings)),
-      images: JSON.parse(JSON.stringify(pageData.images ?? [])),
-    })
-    if (undoStack.current.length > MAX_HISTORY) {
-      undoStack.current.shift()
-    }
-    redoStack.current = []
-    setCanUndo(undoStack.current.length > 0)
-    setCanRedo(false)
-  }, [])
-
-  const handleUndo = useCallback(() => {
-    if (undoStack.current.length === 0) return
-    const prev = undoStack.current.pop()
-    if (!prev) return
-
-    setPages((currPages) => {
-      const targetPage = currPages.find((p) => p.id === prev.pageId)
-      if (!targetPage) return currPages
-
-      redoStack.current.push({
-        pageId: prev.pageId,
-        textBoxes: JSON.parse(JSON.stringify(targetPage.textBoxes)),
-        drawings: JSON.parse(JSON.stringify(targetPage.drawings)),
-        images: JSON.parse(JSON.stringify(targetPage.images ?? [])),
-      })
-      if (redoStack.current.length > MAX_HISTORY) {
-        redoStack.current.shift()
-      }
-
-      const updated = currPages.map((p) =>
-        p.id === prev.pageId
-          ? {
-              ...p,
-              textBoxes: prev.textBoxes,
-              drawings: prev.drawings,
-              images: prev.images ?? [],
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-      markPageDirty(prev.pageId, updated)
-      return updated
-    })
-
-    setCanUndo(undoStack.current.length > 0)
-    setCanRedo(redoStack.current.length > 0)
-  }, [markPageDirty])
-
-  const handleRedo = useCallback(() => {
-    if (redoStack.current.length === 0) return
-    const next = redoStack.current.pop()
-    if (!next) return
-
-    setPages((currPages) => {
-      const targetPage = currPages.find((p) => p.id === next.pageId)
-      if (!targetPage) return currPages
-
-      undoStack.current.push({
-        pageId: next.pageId,
-        textBoxes: JSON.parse(JSON.stringify(targetPage.textBoxes)),
-        drawings: JSON.parse(JSON.stringify(targetPage.drawings)),
-        images: JSON.parse(JSON.stringify(targetPage.images ?? [])),
-      })
-      if (undoStack.current.length > MAX_HISTORY) {
-        undoStack.current.shift()
-      }
-
-      const updated = currPages.map((p) =>
-        p.id === next.pageId
-          ? {
-              ...p,
-              textBoxes: next.textBoxes,
-              drawings: next.drawings,
-              images: next.images ?? [],
-              updatedAt: Date.now(),
-            }
-          : p
-      )
-      markPageDirty(next.pageId, updated)
-      return updated
-    })
-
-    setCanUndo(undoStack.current.length > 0)
-    setCanRedo(redoStack.current.length > 0)
-  }, [markPageDirty])
+  // Undo / Redo cho vở vật lý (stacks nằm trong hook, semantics giữ nguyên)
+  const { pushHistory, handleUndo, handleRedo, canUndo, canRedo } = useNotebookHistory(setPages, {
+    onDirty: (pageId, updatedPages) => markPageDirty(pageId, updatedPages),
+  })
 
   // Page Content Mutations
   const handleAddTextBox = useCallback(
@@ -1144,28 +994,6 @@ export default function App() {
   // Quick Open (Ctrl+O) tìm file kiểu Obsidian
   const [quickOpen, setQuickOpen] = useState(false)
 
-  // Flatten vault tree thành danh sách file (cho Quick Open + gợi ý [[wikilink]])
-  // useMemo: cây vault lớn thì không duyệt lại mỗi lần gõ phím
-  const vaultFiles = useMemo(() => {
-    const out: { name: string; path: string }[] = []
-    const walk = (list: VaultFileItem[]) => {
-      for (const it of list) {
-        if (it.isDirectory) {
-          if (it.children) walk(it.children)
-        } else {
-          out.push({ name: it.name, path: it.path })
-        }
-      }
-    }
-    walk(vaultItems)
-    return out
-  }, [vaultItems])
-
-  // Index tên file vault cho resolve ảnh (Tauri asset URL) + gợi ý [[wikilink]]
-  useEffect(() => {
-    setVaultFileIndex(vaultFiles)
-  }, [vaultItems])
-
   // 8. Open File into Tab
   const handleOpenFile = async (filePath: string, preferredMode?: EditorMode) => {
     // Check if already open
@@ -1521,32 +1349,6 @@ export default function App() {
     handleSaveTabContent,
   ])
 
-  // Compute Visible Pages for Spread
-  // In spread mode, always anchors to even indices [0, 2, 4,...] so pages 1-2, 3-4, 5-6 are always paired!
-  // (split view ép cuộn dọc 1 trang nên truyền viewMode hiệu dụng vào)
-  const getVisiblePages = (
-    vm: ViewSpreadMode,
-    pageList: PageData[],
-    pageIdx: number
-  ): { page: PageData; isSpineLeft?: boolean; isSpineRight?: boolean }[] => {
-    const baseIdx = vm === 'spread' ? Math.floor(pageIdx / 2) * 2 : pageIdx
-    const out: { page: PageData; isSpineLeft?: boolean; isSpineRight?: boolean }[] = []
-    if (pageList.length > 0) {
-      if (vm === 'spread') {
-        const leftPage = pageList[baseIdx]
-        const rightPage = pageList[baseIdx + 1]
-        if (leftPage) out.push({ page: leftPage, isSpineRight: !!rightPage })
-        if (rightPage) out.push({ page: rightPage, isSpineLeft: true })
-      } else if (vm === 'single-vertical') {
-        for (const p of pageList) out.push({ page: p })
-      } else {
-        const singlePage = pageList[pageIdx]
-        if (singlePage) out.push({ page: singlePage })
-      }
-    }
-    return out
-  }
-
   // (visiblePages được tính trong renderMynoteWorkspace theo từng pane)
 
   // Editor render helpers (dùng chung cho single + split view)
@@ -1581,181 +1383,127 @@ export default function App() {
     return null
   }
 
-  // Workspace vở vật lý (pane trái). Split view ép cuộn dọc 1 trang cho gọn.
-  const renderMynoteWorkspace = (forceVertical: boolean) => {
-    const vm: ViewSpreadMode = forceVertical ? 'single-vertical' : viewMode
-    const spreadPages = getVisiblePages(vm, pages, currentPageIndex)
-    return (
-      <div className="mynote-workspace-wrapper">
-        {/* Header Toolbar */}
-        <HeaderToolbar
-          activeTool={activeTool}
-          strokeColor={strokeColor}
-          strokeWidth={strokeWidth}
-          paperPattern={paperPattern}
-          viewMode={viewMode}
-          flipAnimation={flipAnimation}
-          fontFamily={fontFamily}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          autosaveStatus={autosaveStatus}
-          hasSelectedElement={selectedDrawingIds.length > 0 || selectedImageIds.length > 0}
-          isToolLocked={isToolLocked}
-          handDrawnStyle={handDrawnStyle}
-          onSelectTool={setActiveTool}
-          onToggleToolLock={() => setIsToolLocked((v) => !v)}
-          onToggleHandDrawnStyle={() => setHandDrawnStyle((v) => !v)}
-          onChangeStrokeColor={handleChangeStrokeColor}
-          onChangeStrokeWidth={handleChangeStrokeWidth}
-          onChangePaperPattern={handleChangePaperPattern}
-          onChangeViewMode={setViewMode}
-          onToggleFlipAnimation={() => setFlipAnimation((prev) => !prev)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onChangeFontFamily={(font) => {
-            setFontFamily(font)
-            if (meta) {
-              const updatedMeta: NotebookMetadata = {
-                ...meta,
-                settings: {
-                  ...meta.settings,
-                  fontFamily: font,
-                },
-                updatedAt: Date.now(),
-              }
-              setMeta(updatedMeta)
-              saveNotebookMeta(updatedMeta)
-              setTabs((curr) =>
-                curr.map((t) =>
-                  t.id === activeTabId
-                    ? {
-                        ...t,
-                        notebookData: t.notebookData
-                          ? { ...t.notebookData, meta: updatedMeta }
-                          : undefined,
-                      }
-                    : t
-                )
-              )
-            }
-          }}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onAddPage={handleAddPage}
-          onOpenExportModal={() => setShowExportModal(true)}
-          onNewNotebook={() => handleNewTab('mynote')}
-          onExportMarkdown={() => {
-            if (meta) {
-              const md = exportNotebookToMarkdown(meta, pages)
-              downloadMarkdownFile(`${activeTab?.title || 'notebook'}.excalidraw.md`, md)
-            }
-          }}
-          onImportMarkdown={async (file) => {
-            const content = await readMarkdownFile(file)
-            const parsed = importNotebookFromMarkdown(content)
-            if (parsed) {
-              setMeta(parsed.meta)
-              setPages(parsed.pages)
-              setCurrentPageIndex(0)
-            }
-          }}
-        />
-
-        {/* Workspace Paper Area */}
-        <main
-          ref={workspaceRef}
-          className="notebook-workspace"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-          onClick={(e) => {
-            const target = e.target as HTMLElement
-            if (
-              target.classList.contains('notebook-workspace') ||
-              target.classList.contains('notebook-desk')
-            ) {
-              setSelectedTextBoxIds([])
-              setSelectedDrawingIds([])
-              setSelectedImageIds([])
-            }
-          }}
-        >
-          <div
-            className={`notebook-desk ${
-              vm === 'spread' ? 'spread-view' : vm === 'single-vertical' ? 'vertical-view' : 'single-view'
-            } ${!forceVertical && isFlipping ? `flipping-${flipDirection} flip-phase-${flipPhase}` : ''}`}
-          >
-            {spreadPages.map(({ page, isSpineLeft, isSpineRight }) => (
-              <NotebookPage
-                key={page.id}
-                page={page}
-                activeTool={activeTool}
-                strokeColor={strokeColor}
-                strokeWidth={strokeWidth}
-                linePitch={meta?.settings.linePitch || 32}
-                selectedTextBoxIds={selectedTextBoxIds}
-                selectedElementIds={selectedDrawingIds}
-                fontFamily={fontFamily}
-                isSpineLeft={isSpineLeft}
-                isSpineRight={isSpineRight}
-                isToolLocked={isToolLocked}
-                handDrawnStyle={handDrawnStyle}
-                canvasPixelScale={zoom}
-                onSelectTextBox={handleSelectTextBox}
-                onSelectTextBoxes={handleSelectTextBoxes}
-                onSelectElement={handleSelectDrawingId}
-                onSelectElements={handleSelectDrawings}
-                onUpdateTextBox={handleUpdateTextBox}
-                onDeleteTextBox={handleDeleteTextBox}
-                onDuplicateTextBox={handleDuplicateTextBox}
-                onAddTextBox={handleAddTextBox}
-                onAddDrawingElement={handleAddDrawingElement}
-                onUpdateDrawingElement={handleUpdateDrawingElement}
-                onRemoveDrawingElement={handleRemoveDrawingElement}
-                onReorderDrawing={handleReorderDrawing}
-                selectedImageIds={selectedImageIds}
-                onSelectImages={handleSelectImages}
-                onAddImage={handleAddImage}
-                onUpdateImage={handleUpdateImage}
-                onRemoveImage={handleRemoveImage}
-                onDuplicateImage={handleDuplicateImage}
-                onReorderImage={handleReorderImage}
-                onAutoSwitchToSelect={() => setActiveTool('select')}
-                onNavigateLink={handleNavigateLink}
-              />
-            ))}
-                  {vm === 'spread' && spreadPages.length === 1 && !spreadPages[0].isSpineLeft && (
-                    <div
-                      className="notebook-sheet-placeholder"
-                      style={{
-                        width: `${PAGE_WIDTH}px`,
-                        height: `${PAGE_HEIGHT}px`,
-                        visibility: 'hidden',
-                        flexShrink: 0,
-                        pointerEvents: 'none',
-                      }}
-                      aria-hidden="true"
-                    />
-                  )}
-                </div>
-              </main>
-
-        {/* Doodles pastel trang trí nền (chỉ khi bật theme pastel) */}
-        {appTheme === 'pastel' && <ThemeDoodles />}
-
-        {/* Floating Bottom Page Navigator */}
-        <PageNavigator
-          pages={pages}
-          currentPageIndex={currentPageIndex}
-          viewMode={vm}
-          zoom={zoom}
-          onNavigatePage={handleNavigatePage}
-          onAddPage={handleAddPage}
-          onDeleteCurrentPage={handleDeleteCurrentPage}
-          onZoomIn={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(1))))}
-          onZoomOut={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(1))))}
-          onZoomReset={() => setZoom(1.0)}
-        />
-      </div>
-    )
+  // Đổi font vở (đồng bộ meta + tab) — tách từ inline trong toolbar
+  const handleChangeMynoteFont = (font: string) => {
+    setFontFamily(font)
+    if (meta) {
+      const updatedMeta: NotebookMetadata = {
+        ...meta,
+        settings: { ...meta.settings, fontFamily: font },
+        updatedAt: Date.now(),
+      }
+      setMeta(updatedMeta)
+      saveNotebookMeta(updatedMeta)
+      setTabs((curr) =>
+        curr.map((t) =>
+          t.id === activeTabId
+            ? { ...t, notebookData: t.notebookData ? { ...t.notebookData, meta: updatedMeta } : undefined }
+            : t
+        )
+      )
+    }
   }
+
+  const handleExportMynoteMarkdown = () => {
+    if (meta) {
+      const md = exportNotebookToMarkdown(meta, pages)
+      downloadMarkdownFile(`${activeTab?.title || 'notebook'}.excalidraw.md`, md)
+    }
+  }
+
+  const handleImportMynoteMarkdown = async (file: File) => {
+    const content = await readMarkdownFile(file)
+    const parsed = importNotebookFromMarkdown(content)
+    if (parsed) {
+      setMeta(parsed.meta)
+      setPages(parsed.pages)
+      setCurrentPageIndex(0)
+    }
+  }
+
+  const handleDeselectAll = () => {
+    setSelectedTextBoxIds([])
+    setSelectedDrawingIds([])
+    setSelectedImageIds([])
+  }
+
+  // Workspace vở vật lý (pane trái). Split view ép cuộn dọc 1 trang cho gọn.
+  // Presentational nằm ở components/MynoteWorkspace — App chỉ đấu nối state/handlers.
+  const renderMynoteWorkspace = (forceVertical: boolean) => (
+    <MynoteWorkspace
+      forceVertical={forceVertical}
+      viewMode={viewMode}
+      pages={pages}
+      currentPageIndex={currentPageIndex}
+      activeTool={activeTool}
+      strokeColor={strokeColor}
+      strokeWidth={strokeWidth}
+      paperPattern={paperPattern}
+      flipAnimation={flipAnimation}
+      fontFamily={fontFamily}
+      linePitch={meta?.settings.linePitch || 32}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      autosaveStatus={autosaveStatus}
+      hasSelectedElement={selectedDrawingIds.length > 0 || selectedImageIds.length > 0}
+      isToolLocked={isToolLocked}
+      handDrawnStyle={handDrawnStyle}
+      isFlipping={isFlipping}
+      flipDirection={flipDirection}
+      flipPhase={flipPhase}
+      zoom={zoom}
+      isPastel={appTheme === 'pastel'}
+      meta={meta}
+      activeTabTitle={activeTab?.title || 'notebook'}
+      selectedTextBoxIds={selectedTextBoxIds}
+      selectedDrawingIds={selectedDrawingIds}
+      selectedImageIds={selectedImageIds}
+      workspaceRef={workspaceRef}
+      onSelectTool={setActiveTool}
+      onToggleToolLock={() => setIsToolLocked((v) => !v)}
+      onToggleHandDrawnStyle={() => setHandDrawnStyle((v) => !v)}
+      onChangeStrokeColor={handleChangeStrokeColor}
+      onChangeStrokeWidth={handleChangeStrokeWidth}
+      onChangePaperPattern={handleChangePaperPattern}
+      onChangeViewMode={setViewMode}
+      onToggleFlipAnimation={() => setFlipAnimation((prev) => !prev)}
+      onOpenSettings={() => setIsSettingsOpen(true)}
+      onChangeFontFamily={handleChangeMynoteFont}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      onAddPage={handleAddPage}
+      onOpenExportModal={() => setShowExportModal(true)}
+      onNewNotebook={() => handleNewTab('mynote')}
+      onExportMarkdown={handleExportMynoteMarkdown}
+      onImportMarkdown={handleImportMynoteMarkdown}
+      onDeselectAll={handleDeselectAll}
+      onSelectTextBox={handleSelectTextBox}
+      onSelectTextBoxes={handleSelectTextBoxes}
+      onSelectDrawing={handleSelectDrawingId}
+      onSelectDrawings={handleSelectDrawings}
+      onUpdateTextBox={handleUpdateTextBox}
+      onDeleteTextBox={handleDeleteTextBox}
+      onDuplicateTextBox={handleDuplicateTextBox}
+      onAddTextBox={handleAddTextBox}
+      onAddDrawingElement={handleAddDrawingElement}
+      onUpdateDrawingElement={handleUpdateDrawingElement}
+      onRemoveDrawingElement={handleRemoveDrawingElement}
+      onReorderDrawing={handleReorderDrawing}
+      onSelectImages={handleSelectImages}
+      onAddImage={handleAddImage}
+      onUpdateImage={handleUpdateImage}
+      onRemoveImage={handleRemoveImage}
+      onDuplicateImage={handleDuplicateImage}
+      onReorderImage={handleReorderImage}
+      onAutoSwitchToSelect={() => setActiveTool('select')}
+      onNavigateLink={handleNavigateLink}
+      onNavigatePage={handleNavigatePage}
+      onDeleteCurrentPage={handleDeleteCurrentPage}
+      onZoomIn={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(1))))}
+      onZoomOut={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(1))))}
+      onZoomReset={() => setZoom(1.0)}
+    />
+  )
 
   // Pane phải của split view: header chọn note + nội dung (mynote cuộn dọc)
   const renderSplitRightPane = () => {
