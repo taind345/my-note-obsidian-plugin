@@ -46,8 +46,8 @@ export interface WidthDef {
 
 export const STROKE_WIDTHS: WidthDef[] = [
   { label: '1', value: 1, title: 'Rất mảnh (1px)' },
-  { label: '2', value: 2, title: 'Siêu mảnh (2px)' },
-  { label: '3', value: 3, title: 'Mảnh (3px)' },
+  { label: '2', value: 1.4, title: 'Siêu mảnh (1.4px)' },
+  { label: '3', value: 2.8, title: 'Mảnh (2.8px)' },
   { label: '4', value: 5, title: 'Vừa (5px)' },
   { label: '5', value: 8, title: 'Đậm (8px)' },
   { label: '6', value: 12, title: 'Siêu đậm (12px)' },

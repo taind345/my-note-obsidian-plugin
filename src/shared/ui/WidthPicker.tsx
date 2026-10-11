@@ -15,25 +15,33 @@ interface WidthPickerProps {
 export function WidthPicker({ value, onChange, compact = false, widths = STROKE_WIDTHS, strokeColor }: WidthPickerProps) {
   return (
     <div className="stroke-level-selector" title="Stroke Width">
-      {widths.map((sw) => (
-        <button
-          key={sw.value}
-          type="button"
-          className={`stroke-level-btn ${value === sw.value ? 'active' : ''}`}
-          onClick={() => onChange(sw.value)}
-          title={sw.title}
-        >
-          <span
-            className="level-dot"
-            style={{
-              width: `${Math.min(10, Math.max(3, sw.value))}px`,
-              height: `${Math.min(10, Math.max(3, sw.value))}px`,
-              backgroundColor: strokeColor || undefined,
-            }}
-          />
-          {!compact && <span className="level-num">{sw.label}</span>}
-        </button>
-      ))}
+      {widths.map((sw) => {
+        const dotSize =
+          sw.value <= 1 ? 3 :
+          sw.value <= 1.5 ? 4 :
+          sw.value <= 3 ? 5.5 :
+          sw.value <= 6 ? 7.5 : 10
+
+        return (
+          <button
+            key={sw.value}
+            type="button"
+            className={`stroke-level-btn ${Math.abs(value - sw.value) < 0.05 ? 'active' : ''}`}
+            onClick={() => onChange(sw.value)}
+            title={sw.title}
+          >
+            <span
+              className="level-dot"
+              style={{
+                width: `${dotSize}px`,
+                height: `${dotSize}px`,
+                backgroundColor: strokeColor || undefined,
+              }}
+            />
+            {!compact && <span className="level-num">{sw.label}</span>}
+          </button>
+        )
+      })}
     </div>
   )
 }

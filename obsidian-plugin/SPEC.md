@@ -54,12 +54,14 @@ nhờ alias), lucide, markdown-it, katex, roughjs, idb-keyval. External: `obsidi
 ## 3. Vòng đời view
 
 ```
-click .mynote.md
-  → Obsidian mở markdown view (đuôi sau chấm cuối là .md; đã đăng ký thêm đuôi "mynote" theo Excalidraw nhưng core vẫn ưu tiên markdown)
-  → event file-open → GIẤU đồng bộ tab thừa ngay trong event (display:none, trước paint) + poll mỗi frame
-  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) + detach tab thừa, KHÔNG convert/load lại — click sidebar không bao giờ reload file;
-    chưa có thì đợi leaf ỔN ĐỊNH 3 frame rồi mới đổi leaf markdown đang hiển thị đúng file sang view vở (tìm theo file, không đoán bằng getMostRecentLeaf; hiện lại sau loadPath, timeout hiện lại hết để không kẹt tab ẩn)
-  → parse JSON nhúng → createRoot → render (bọc ErrorBoundary hiện lỗi ra view; bitmap tĩnh defer paint khi ngoài viewport)
+click .mynote.md (hoặc openLinkText / quick switcher)
+  → Monkey-patch đồng bộ trên `WorkspaceLeaf.prototype.setViewState` (chuẩn Excalidraw) chặn trước frame 0:
+      1. BẤT BIẾN 1 file = 1 leaf vở: nếu file đã có leaf vở đang mở, chỉ chuyển focus về đó
+         (setActiveLeaf {focus: true}) + dọn tab rỗng vừa tạo (nếu có); KHÔNG bao giờ đẻ tab trùng.
+      2. Nếu file chưa mở: đổi thẳng viewState.type = "mybook-notebook".
+         → Obsidian trực tiếp khởi tạo MyBookView, MarkdownView hoàn toàn KHÔNG bao giờ được tạo hay vẽ.
+         → Tab header sinh ra là có sẵn icon "notebook-pen" và tên vở ngay từ frame đầu tiên (không chớp icon/title).
+  → MyBookView.setState(state) → loadPath(state.file) (ngưỡng 80ms không chớp text loading)
   → parse JSON nhúng → createRoot → render (bọc ErrorBoundary hiện lỗi ra view)
 Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo dõi rename/delete)
 Đóng: unmount root, clear path. setAssetResolver(null) khi unload plugin.
@@ -68,8 +70,7 @@ Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo d
 - `MyBookView.getState()/setState()` giữ `{file}` để Obsidian lưu/khôi phục layout.
 - Tạo vở mới (`note_1.mynote.md`, trùng thì `note_2...`, lấp số trống, tối đa 100 lần thử): thử `vault.create` thật, tạo trong
   thư mục file đang mở → thư mục vở mở gần nhất → vault root.
-- `openInMyBook` tự lái `view.loadPath()` sau `setViewState` (không trông chờ Obsidian
-  gọi `setState`), mọi lỗi hiện Notice + console.
+- `openInMyBook` và `patchWorkspaceLeaf` khởi tạo `MyBookView` trực tiếp, mọi lỗi hiện Notice + console.
 
 ## 4. Nhận diện file vở
 
@@ -149,11 +150,50 @@ Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynot
      - *Bổ sung Coalesced Events:* Sử dụng `e.nativeEvent.getCoalescedEvents()` để thu thập toàn bộ các điểm trung gian bị gộp giữa các frame. Sai số hình học khi viết nhanh giảm từ ~5.4px xuống ~0.76px.
      - *Thống nhất hàm vẽ & Dirty-Rect Preview:* Preview gọi thẳng `drawStaticElement` (chung logic, thuộc tính với nét commit). Mỗi frame preview chỉ tính bounding box của nét hiện tại (+ padding nét & AA) và chỉ clear/vẽ trong vùng bọc này. Test điểm ảnh so với vẽ sạch: 0 px lệch.
      - *Hỗ trợ điểm chấm tròn:* Tap tạo cặp điểm trùng nhau; `drawSmoothStroke` vẽ chấm tròn bằng `arc()` với `fillStyle = strokeStyle` chuẩn màu nét.
-3. Backing canvas hợp nhất cho preview/static (`canvasBackingScale`: dpr×zoom,
+3. **Lỗi nhấp nháy thanh tab và màn hình khi mở file — ĐÃ FIX (2026-10):**
+   - **Hiện tượng lỗi:**
+     - Khi mở file `.mynote.md` từ File Explorer hoặc thanh link, thanh tab Obsidian bị chớp/giật (icon đổi từ Markdown sang notebook-pen, tên file nhảy nhót, hoặc sinh thêm 1 tab thừa rồi biến mất).
+     - Màn hình bị chớp đen/trắng 1 nhịp do view bị giấu/hiện và trễ vài frame mới hiện vở.
+   - **Nguyên nhân gốc rễ:**
+     - Obsidian chỉ phân tích đuôi cuối (`.md`) nên core luôn ưu tiên mở bằng `MarkdownView`.
+     - Plugin trước đây xử lý sau lưng qua `workspace.on('file-open')`: MarkdownView đã được vẽ lên màn hình, sau đó plugin mới đặt `display: none` để giấu, polling `requestAnimationFrame` 3 frame rồi mới đổi sang `MyBookView`, khiến tab header đổi icon/title và màn hình giật 2 nhịp. Nếu file đã mở ở tab khác, Obsidian đẻ thêm tab mới rồi plugin mới `detach()`, gây giật mạnh thanh tab.
+   - **Giải pháp áp dụng (học từ Excalidraw plugin):**
+     - Monkey-patch đồng bộ `WorkspaceLeaf.prototype.setViewState` qua tiện ích an toàn `around`:
+       1. Ngay khi Obsidian chuẩn bị mở leaf (trước khi bất kỳ view nào được tạo, trước frame 0):
+          - Nếu file đã mở ở leaf khác: chuyển focus ngay về leaf đó, đóng tab trống thừa nếu có. Bất biến 1 file = 1 leaf được duy trì êm ái, không giật tab.
+          - Nếu file chưa mở: đổi thẳng `viewState.type` từ `markdown` sang `mybook-notebook`.
+       2. `MarkdownView` **hoàn toàn không được khởi tạo hay vẽ**, tab sinh ra đã mang sẵn icon `notebook-pen` và tiêu đề từ frame 0.
+       3. Xóa bỏ hoàn toàn logic `display: none`, `requestAnimationFrame` polling 3 frame và listener `file-open`.
+       4. Thêm ngưỡng 80ms cho loading indicator trong `loadPath` để mở file tức thì mà không chớp text "Đang tải vở...".
+4. **Lỗi tê liệt cuộn trang (không cuộn được bằng chuột, touchpad lẫn phím mũi tên) — ĐÃ FIX (2026-10):**
+   - **Hiện tượng lỗi:** Sau khi thêm tính năng điều hướng phím mũi tên và chỉnh khoảng cách trang, toàn bộ thao tác cuộn bằng con lăn chuột, vuốt 2 ngón touchpad lẫn bấm phím mũi tên đều bị đơ cứng, không cuộn trang được.
+   - **Nguyên nhân gốc rễ:**
+     - *`overscroll-behavior-y: contain` kẹt gesture trong Chromium/Electron:* Khi đặt thuộc tính này trên `.mybook-pages-scroll` chứa các phần tử con mang `touch-action: none` (như `.active-canvas` của lớp vẽ), bộ lọc gesture của Chromium nuốt/chặn sự kiện `wheel`, triệt tiêu khả năng cuộn.
+     - *Wheel listener `{ passive: false }`:* Bắt buộc Chromium phải chờ luồng JS chính xử lý xong thay vì để compositor thread cuộn phần cứng mượt mà.
+     - *Sai lệch Focus Context của Obsidian:* Logic cũ kiểm tra `host.contains(document.activeElement)`, nhưng trong Obsidian khi click vào tab vở thì `activeElement` nằm ở leaf container ngoài, khiến `isInside` trả về `false` và phím mũi tên không hoạt động.
+   - **Giải pháp áp dụng:**
+     - Xóa bỏ `overscroll-behavior-y: contain` và `-webkit-overflow-scrolling: touch` khỏi `.mybook-pages-scroll`, thiết lập `width: 100%; overflow-y: auto; overflow-x: auto`.
+     - Giữ chuẩn khoảng cách giữa các trang `gap: 16px` trên `.mybook-pages-fitwrap`.
+     - **Bỏ hoàn toàn listener zoom qua touchpad/wheel** (tránh giật lag và xung đột với cử chỉ 2 ngón của touchpad). Thao tác zoom giữ nguyên qua các nút capsule trên toolbar (+, -, fit, 100%).
+     - **Cuộn phím siêu mượt qua requestAnimationFrame (lerp 60-120fps):** Tự động tìm scroller thực tế (`getScroller`), cộng dồn bước cuộn khi nhấp phím liên tục, nội suy mượt mà qua rAF (không dùng `scrollBy({ behavior: 'smooth' })` của trình duyệt vốn bị nghẽn/hủy khi bấm nhanh). Hủy tức thì animation nếu người dùng dùng chuột/touchpad.
+5. **Con trỏ vẽ không hiện dấu cộng trên bảng vẽ (drawing tablet / stylus) — ĐÃ FIX (2026-10):**
+   - **Hiện tượng lỗi:** Khi cắm bảng vẽ (Wacom, Huion, XP-Pen, stylus) vào vẽ trên Obsidian, con trỏ chỉ hiện mũi tên chuột thông thường thay vì con trỏ dấu cộng (`crosshair`).
+   - **Nguyên nhân gốc rễ:**
+     - Trong Chromium/Electron (đặc biệt môi trường Wayland/X11 trên Linux mà Obsidian vận hành), thiết bị digitizer/stylus (`pointerType === 'pen'`, `wl_tablet_tool`) được bàn giao trực tiếp cho compositor OS quản lý. Compositor thường bỏ qua các quy tắc CSS `cursor: crosshair` hoặc SVG data-URI của web engine đối với bút bảng vẽ và ép dùng con trỏ hệ thống mặc định (`left_ptr` / mũi tên chuột).
+   - **Giải pháp áp dụng (chuẩn công nghiệp như Figma / Photoshop Web / Excalidraw):**
+     - **In-Canvas Virtual Crosshair Overlay (`PageCanvas.tsx`):**
+       - Tạo phần tử DOM con trỏ ảo `.virtual-drawing-crosshair` vẽ dấu cộng SVG 24×24px, 2 tông màu tương phản cao (viền trắng 3.5px + lõi tối 1.5px + tâm chấm ngắm 1.5px), `pointerEvents: 'none'`, `willChange: 'transform'`.
+       - Lắng nghe `onPointerMove`, `onPointerDown`, `onPointerEnter`, `onPointerLeave`, `onPointerCancel` và cập nhật trực tiếp tọa độ qua `ref.style.transform = translate3d(x, y, 0) scale(1/zoom)` (0 React re-renders, tracking mượt 125–1000Hz theo tần số lấy mẫu phần cứng của bảng vẽ).
+     - **Triệt tiêu mũi tên chuột hệ thống (`obsidian-overrides.css`, `06-canvas-navigator.css` & React inline styles):**
+       - Trên Linux Wayland / Electron, quy tắc `cursor: none` đơn lẻ thường bị compositor bỏ qua (do Wayland gán surface null và fallback về con trỏ mặc định). Chuẩn xử lý trên Electron là sử dụng ảnh PNG trong suốt 1×1 pixel base64: `cursor: url("data:image/png;base64,...") 0 0, none !important`.
+       - Khi Chromium nạp một surface PNG hợp lệ (dù trong suốt), compositor hệ thống sẽ chấp nhận và vẽ surface trong suốt đó, làm biến mất hoàn toàn mũi tên chuột.
+       - Đã áp dụng đồng bộ từ cấp host (`.mybook-obsidian-host.is-drawing-active`), `.notebook-sheet`, `.page-drawing-layer` cho đến `<canvas className="active-canvas">`.
+       - Nhờ đó, mũi tên chuột hệ thống bị triệt tiêu 100%, chỉ còn lại duy nhất dấu cộng ảo `+` sắc nét, chính xác ngay tại đầu ngòi bút. Chế độ tẩy (`eraser`) vẫn hiển thị con trỏ tẩy chuyên biệt, và chế độ chọn (`select` / `text`) vẫn dùng con trỏ hệ thống bình thường.
+6. Backing canvas hợp nhất cho preview/static (`canvasBackingScale`: dpr×zoom,
    min 1 max 4) — zoom 2× trên hidpi vẫn nét; cap 4x để nhẹ RAM.
-4. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM.
-5. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).
-6. Mobile chưa test (đánh dấu `isDesktopOnly: false` nhưng chưa verify cảm ứng).
+7. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM.
+8. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).
+9. Mobile chưa test (đánh dấu `isDesktopOnly: false` nhưng chưa verify cảm ứng).
 
 ## 10. Gợi ý clean/refactor tiếp (cho đợt dọn code)
 

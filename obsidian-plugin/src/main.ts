@@ -12,6 +12,7 @@ import {
 } from '@/services/markdownFile'
 import { getEmptyNotebook } from '@/services/storage'
 import { MyBookNotebook, MyBookErrorBoundary } from './MyBookNotebook'
+import { around } from './around'
 
 export const MYBOOK_VIEW_TYPE = 'mybook-notebook'
 /** Đuôi file vở MyBook (giữ nguyên .md để Obsidian vẫn đọc text được) */
@@ -40,6 +41,22 @@ function isMyBookNote(app: App, file: TFile): boolean {
   return false
 }
 
+/** Nhận diện qua filepath hoặc cache vault */
+function isMyBookNotePath(app: App, filePath: string): boolean {
+  if (isMyBookFile(filePath)) return true
+  try {
+    const file = app.vault.getAbstractFileByPath(filePath)
+    if (file instanceof TFile) {
+      const cache = app.metadataCache.getFileCache(file)
+      const fm = cache?.frontmatter as Record<string, unknown> | undefined
+      if (fm && fm['mybook-plugin'] !== undefined) return true
+    }
+  } catch {
+    /* bỏ qua */
+  }
+  return false
+}
+
 /** Chuẩn hóa path vault để so khớp leaf (tránh lệch trailing slash) */
 function normLeafPath(p: string | null | undefined): string {
   return (p || '').trim().replace(/\/+$/, '')
@@ -51,97 +68,44 @@ function findMyBookLeaves(app: App, filePath: string): WorkspaceLeaf[] {
   const out: WorkspaceLeaf[] = []
   for (const leaf of app.workspace.getLeavesOfType(MYBOOK_VIEW_TYPE)) {
     const v = leaf.view
-    if (v instanceof MyBookView && normLeafPath(v.currentFilePath) === want) {
-      out.push(leaf)
+    if (v instanceof MyBookView) {
+      const curPath = v.currentFilePath || (v.leaf.getViewState().state as { file?: string } | undefined)?.file
+      if (normLeafPath(curPath) === want) {
+        out.push(leaf)
+      }
     }
   }
   return out
 }
 
-/** Mọi leaf markdown đang hiển thị file này (tab thừa sau sidebar click) */
-function findMarkdownLeavesShowing(app: App, filePath: string): WorkspaceLeaf[] {
-  const want = normLeafPath(filePath)
-  const out: WorkspaceLeaf[] = []
-  for (const leaf of app.workspace.getLeavesOfType('markdown')) {
-    const view = leaf.view as unknown as { file?: { path?: string } } | null
-    const showing = view?.file?.path
-    if (showing && normLeafPath(showing) === want) out.push(leaf)
-  }
-  return out
-}
-
-/** Giấu nội dung 1 leaf (display:none): không paint → không chớp, không tốn
-    render. Không đụng cấu trúc leaf nên an toàn giữa lúc Obsidian mở dở. */
-function setLeafContentVisible(leaf: WorkspaceLeaf, visible: boolean): void {
-  try {
-    leaf.view.containerEl.style.display = visible ? '' : 'none'
-  } catch {
-    /* leaf/view chưa sẵn — bỏ qua, tick sau thử lại */
-  }
-}
-
 export default class MyBookPlugin extends Plugin {
+  isLoaded = false
+  forceOpenAsMarkdownPath: string | null = null
+
   async onload() {
+    this.isLoaded = true
     // Ảnh ![[...]] trong textbox resolve qua Vault API (resource path của Obsidian)
-    setAssetResolver((filename) => this.resolveVaultImage(filename));
+    setAssetResolver((filename) => this.resolveVaultImage(filename))
 
     this.registerView(MYBOOK_VIEW_TYPE, (leaf) => new MyBookView(leaf, this))
 
-    // Nhận file .mynote.md bằng view vở (thay vì markdown thường).
-    // Đăng ký CẢ 2 dạng như plugin Excalidraw ("excalidraw", không phải
-    // "excalidraw.md"): khớp kiểu nào thì mở thẳng view vở, không còn tab
-    // markdown trung gian render JSON thô (nguồn gốc của lag + chớp tab).
     this.registerExtensions(['mynote', MYBOOK_EXTS[0]], MYBOOK_VIEW_TYPE)
 
-    // Fallback chắc ăn: Obsidian coi .mynote.md là md thường (đuôi sau dấu chấm
-    // cuối), nên khi file vở bị mở bằng view markdown thì tự chuyển sang view vở.
-    // Bất biến 1 file = 1 leaf vở (xem findMyBookLeaves): file đã có leaf vở thì
-    // focus về đó + dọn tab thừa, không bao giờ đẻ tab mới.
-    // MƯỢT (không chớp tab): poll mỗi frame — xử lý ngay khi trạng thái leaf
-    // ỔN ĐỊNH (không đổi liên tiếp 3 frame), vẫn trước khi paint xong nên tab
-    // thừa bị dọn/convert gọn. Timeout 2000ms cho file to attach chậm thì bỏ qua.
-    this.registerEvent(
-      this.app.workspace.on('file-open', (file) => {
-        if (!file || !isMyBookNote(this.app, file)) return
-        const start = performance.now()
-        const st = { key: '', stable: 0 }
-        const hiddenByMe: WorkspaceLeaf[] = []
-        // Giấu ĐỒNG BỘ ngay trong event (trước paint frame đầu): tab markdown
-        // thừa đã attach kịp thì nó không bao giờ được vẽ — hết lóe 1 frame.
-        // Chưa attach thì rAF poll phía dưới lo tiếp.
-        try {
-          if (findMyBookLeaves(this.app, file.path).length > 0) {
-            for (const l of findMarkdownLeavesShowing(this.app, file.path)) {
-              setLeafContentVisible(l, false)
-              if (!hiddenByMe.includes(l)) hiddenByMe.push(l)
-            }
-          }
-        } catch {
-          /* bỏ qua, poll lo tiếp */
-        }
-        const tick = () => {
-          void (async () => {
-            try {
-              const settled = await this.settleFileOpen(file, st, hiddenByMe)
-              if (!settled && performance.now() - start < 2000) {
-                requestAnimationFrame(tick)
-              } else {
-                // Hết vòng (xong hoặc timeout): hiện lại tab nào mình giấu mà
-                // chưa bị detach — tránh kẹt tab vô hình. Detached thì vô hại.
-                for (const l of hiddenByMe) setLeafContentVisible(l, true)
-              }
-            } catch (err) {
-              console.error('[MyBook] auto-convert view failed:', err)
-            }
-          })()
-        }
-        requestAnimationFrame(tick)
-      })
-    )
+    // Chặn đồng bộ setViewState (cơ chế kiểu Excalidraw):
+    // Khi Obsidian mở file .mynote.md, chuyển thẳng sang MYBOOK_VIEW_TYPE
+    // ngay trước khi MarkdownView kịp khởi tạo hay render frame nào.
+    // -> Triệt tiêu 100% hiện tượng chớp tab và nhấp nháy màn hình.
+    this.patchWorkspaceLeaf()
 
-    // Menu chuột phải lên file vở: mở bằng MyBook
+    // Nếu lúc mở app/reload đã có sẵn leaf markdown đang hiển thị file .mynote.md,
+    // nâng cấp lên view vở khi workspace sẵn sàng.
+    this.app.workspace.onLayoutReady(() => {
+      this.switchToMyBookAfterLoad()
+    })
+
+    // Menu chuột phải lên file vở: mở bằng MyBook hoặc xem Markdown thô
     this.registerEvent(
-      this.app.workspace.on('file-menu', (menu, file) => {
+      this.app.workspace.on('file-menu', (menu, file, _source, leaf) => {
         if (file instanceof TFile && isMyBookNote(this.app, file)) {
           menu.addItem((item) =>
             item
@@ -149,6 +113,20 @@ export default class MyBookPlugin extends Plugin {
               .setIcon('notebook-pen')
               .onClick(() => {
                 void this.openInMyBook(file)
+              })
+          )
+          menu.addItem((item) =>
+            item
+              .setTitle('Mở dạng Markdown thô')
+              .setIcon('file-text')
+              .onClick(async () => {
+                this.forceOpenAsMarkdownPath = file.path
+                const targetLeaf = leaf ?? this.app.workspace.getLeaf(false)
+                await targetLeaf.setViewState({
+                  type: 'markdown',
+                  state: { file: file.path, mode: 'source' },
+                  active: true,
+                })
               })
           )
         }
@@ -202,7 +180,84 @@ export default class MyBookPlugin extends Plugin {
   }
 
   onunload() {
+    this.isLoaded = false
     setAssetResolver(null)
+  }
+
+  /**
+   * Hook đồng bộ vào WorkspaceLeaf.prototype.setViewState (chuẩn Excalidraw):
+   * Khi Obsidian điều hướng/mở file .mynote.md:
+   * 1. Nếu file đã có leaf đang mở: focus về đó ngay lập tức (không đẻ tab trùng, không giật tab).
+   * 2. Nếu file chưa mở: đổi type thành MYBOOK_VIEW_TYPE trước khi view được khởi tạo.
+   *    -> MarkdownView không bao giờ được tạo, tab sinh ra là có sẵn icon và title MyBook.
+   */
+  patchWorkspaceLeaf(): void {
+    const plugin = this
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const unpatch = around(WorkspaceLeaf.prototype as unknown as Record<string, unknown>, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setViewState(next: any) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return function (this: WorkspaceLeaf, viewState: any, ...args: any[]) {
+          const filePath = viewState?.state?.file
+          const isMarkdown = viewState?.type === 'markdown'
+          const isMyBook = viewState?.type === MYBOOK_VIEW_TYPE
+
+          if (
+            plugin.isLoaded &&
+            typeof filePath === 'string' &&
+            (isMarkdown || isMyBook) &&
+            isMyBookNotePath(plugin.app, filePath)
+          ) {
+            // Cho phép mở Markdown thô khi user chọn từ context menu
+            if (plugin.forceOpenAsMarkdownPath === filePath) {
+              plugin.forceOpenAsMarkdownPath = null
+              return next.apply(this, [viewState, ...args])
+            }
+
+            // Bất biến 1 file = 1 leaf vở:
+            // Nếu file đã mở ở leaf khác thì chỉ focus về đó, dọn tab trống vừa tạo (nếu có)
+            const existingLeaves = findMyBookLeaves(plugin.app, filePath)
+            const existingLeaf = existingLeaves.find((l) => l !== this)
+            if (existingLeaf) {
+              plugin.app.workspace.setActiveLeaf(existingLeaf, { focus: true })
+              const curViewType = this.view?.getViewType?.()
+              if (curViewType === 'empty' || !curViewType) {
+                this.detach()
+              }
+              return Promise.resolve()
+            }
+
+            // Chuyển thẳng sang MYBOOK_VIEW_TYPE đồng bộ trước khi view được tạo
+            if (isMarkdown) {
+              const patched = {
+                ...viewState,
+                type: MYBOOK_VIEW_TYPE,
+              }
+              return next.apply(this, [patched, ...args])
+            }
+          }
+
+          return next.apply(this, [viewState, ...args])
+        }
+      },
+    })
+    this.register(unpatch)
+  }
+
+  /** Chuyển các tab markdown đang mở file .mynote.md sang MyBookView khi khởi động app */
+  switchToMyBookAfterLoad(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
+      const view = leaf.view as unknown as { file?: { path?: string } } | null
+      const filePath = view?.file?.path
+      if (filePath && isMyBookNotePath(this.app, filePath)) {
+        void leaf.setViewState({
+          type: MYBOOK_VIEW_TYPE,
+          state: { file: filePath },
+          active: leaf === this.app.workspace.activeLeaf,
+        })
+      }
+    }
   }
 
   vaultRoot(): string {
@@ -271,100 +326,6 @@ export default class MyBookPlugin extends Plugin {
     }
   }
 
-  /**
-   * Xử lý 1 tick mở file. true = đã yên (convert/focus/dọn xong, hoặc chắc chắn
-   * không có gì để làm); false → poll tiếp. Tick nào cũng rẻ và no-op khi ổn.
-   *
-   * Hành động cấu trúc (convert/detach) chỉ chạy khi trạng thái leaf ỔN ĐỊNH
-   * liên tiếp 3 frame: làm giữa lúc Obsidian đang mở dở (re-entrancy) sẽ bị nó
-   * đè lại → tab trắng/tab kẹt. Ổn định rồi mới làm.
-   */
-  async settleFileOpen(
-    file: TFile,
-    st: { key: string; stable: number },
-    hiddenByMe: WorkspaceLeaf[]
-  ): Promise<boolean> {
-    const STABLE_FRAMES = 3
-    const stableHit = (key: string): boolean => {
-      if (st.key === key) {
-        st.stable += 1
-      } else {
-        st.key = key
-        st.stable = 1
-      }
-      return st.stable >= STABLE_FRAMES
-    }
-
-    const notebookLeaves = findMyBookLeaves(this.app, file.path)
-    const mdLeaves = findMarkdownLeavesShowing(this.app, file.path)
-
-    if (notebookLeaves.length > 0) {
-      // Đã có vở: giữ 1 leaf (ưu tiên leaf đang active), dọn leaf vở trùng
-      const active = this.app.workspace.activeLeaf
-      const keep = active && notebookLeaves.includes(active) ? active : notebookLeaves[0]
-      if (!keep) return true
-      // Giấu NGAY mọi tab thừa (tick đầu, chưa cần ổn định): display:none
-      // thì browser không paint → hết chớp + hết tốn render. Giấu cả tab vở
-      // thừa (direct routing đẻ ra) chứ không riêng markdown. Giấu không đụng
-      // cấu trúc leaf nên vô hại giữa lúc mở dở; dọn/focus vẫn đợi ổn định.
-      // Hết vòng mà chưa detach (timeout) thì hiện lại hết — không kẹt tab ẩn.
-      for (const l of [...notebookLeaves, ...mdLeaves]) {
-        if (l !== keep && !hiddenByMe.includes(l)) {
-          setLeafContentVisible(l, false)
-          hiddenByMe.push(l)
-        }
-      }
-      // Đợi tập leaf ổn định rồi mới đụng (tránh đè lúc Obsidian mở dở)
-      const nbKey = `nb:${notebookLeaves.length}|md:${mdLeaves.length}`
-      if (!stableHit(nbKey)) return false
-      // Đã mở rồi thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) — KHÔNG
-      // convert/load lại: click sidebar không bao giờ reload file. Tab markdown
-      // thừa (vừa mở ra, chưa có state người dùng) dọn luôn.
-      // Thứ tự: focus TRƯỚC, detach SAU — detach tab không-active thì êm,
-      // không kéo focus nhảy 2 lần trong 1 nhịp.
-      if (keep !== this.app.workspace.activeLeaf) {
-        this.app.workspace.setActiveLeaf(keep, { focus: true })
-      }
-      for (const l of notebookLeaves) {
-        if (l !== keep) l.detach()
-      }
-      for (const l of mdLeaves) {
-        if (l !== keep) l.detach()
-      }
-      return true
-    }
-
-    // Chưa có vở: đổi leaf markdown đang hiển thị file sang view vở tại chỗ.
-    const leaf =
-      mdLeaves[0] ??
-      this.app.workspace.getMostRecentLeaf() ??
-      this.app.workspace.activeLeaf ??
-      null
-    if (!leaf) return false
-    const view = leaf.view as unknown as {
-      getViewType?: () => string
-      file?: { path?: string }
-    } | null
-    if (!view || view.getViewType?.() !== 'markdown') return false
-    const showing = view.file?.path
-    const active = this.app.workspace.getActiveFile()?.path
-    if (showing !== file.path && active !== file.path) return false
-    // Đợi leaf ổn định (view+file không đổi liên tiếp) rồi mới convert —
-    // convert giữa lúc mở dở sẽ bị Obsidian đè lại → trắng tab
-    if (!stableHit(`md:${showing || active}`)) return false
-    // Hiện lại SAU khi vở render xong (không phải trước): trong lúc loadPath
-    // mà hiện thì markdown raw lóe lên — đúng cái chớp cần diệt. Load lỗi thì
-    // finally hiện lại để không kẹt tab ẩn.
-    try {
-      await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
-      const v = leaf.view
-      if (v instanceof MyBookView) await v.loadPath(file.path)
-      return true
-    } finally {
-      setLeafContentVisible(leaf, true)
-    }
-  }
-
   async openInMyBook(file: TFile): Promise<void> {
     try {
       // Bất biến 1 file = 1 leaf vở: đã mở ở đâu thì focus về đó, không đẻ tab mới
@@ -383,21 +344,18 @@ export default class MyBookPlugin extends Plugin {
       }
       const leaf = this.app.workspace.getLeaf(true)
       await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
-      // Tự lái view trực tiếp (không phụ thuộc Obsidian có gọi setState hay không)
+      // Đảm bảo view tải nội dung file
       const view = leaf.view
-      if (view instanceof MyBookView) {
+      if (view instanceof MyBookView && view.currentFilePath !== file.path) {
         await view.loadPath(file.path)
-      } else {
-        new Notice('MyBook: mở view thất bại, thử Reload app (Ctrl+P)')
       }
     } catch (err) {
       console.error('[MyBook] openInMyBook failed:', err)
       new Notice(`MyBook: không mở được vở (${err instanceof Error ? err.message : err})`)
     }
   }
-
-
 }
+
 
 class MyBookView extends ItemView {
   plugin: MyBookPlugin
@@ -414,6 +372,15 @@ class MyBookView extends ItemView {
 
   getViewType(): string {
     return MYBOOK_VIEW_TYPE
+  }
+
+  /** File đang mở trong view (cho Obsidian workspace và các plugin khác) */
+  get file(): TFile | null {
+    if (this.currentFilePath) {
+      const f = this.app.vault.getAbstractFileByPath(this.currentFilePath)
+      if (f instanceof TFile) return f
+    }
+    return this.resolveFile()
   }
 
   /** File của view: ưu tiên state khi mở qua lệnh, fallback file đang active */
@@ -435,7 +402,11 @@ class MyBookView extends ItemView {
       const parts = this.currentFilePath.split('/')
       return parts[parts.length - 1].replace(/\.mynote\.md$/i, '') || 'MyBook'
     }
-    return this.resolveFile()?.basename ?? 'MyBook'
+    const f = this.resolveFile()
+    if (f) {
+      return f.basename.replace(/\.mynote$/i, '') || f.basename
+    }
+    return 'MyBook'
   }
 
   getIcon(): string {
@@ -507,14 +478,31 @@ class MyBookView extends ItemView {
     const container = this.containerEl.children[1]
     container.empty()
     container.addClass('mybook-obsidian-host')
-    const loadingEl = container.createEl('div', {
-      text: 'MyBook: đang tải vở...',
-      cls: 'mybook-loading',
-    })
+
+    // Tránh chớp chữ "đang tải vở...": chỉ hiện nếu file đọc/parse quá 80ms
+    let hasFinished = false
+    let loadingEl: HTMLElement | null = null
+    const loadingTimer = setTimeout(() => {
+      if (!hasFinished && this.loadingPath === path && !this.root) {
+        loadingEl = container.createEl('div', {
+          text: 'MyBook: đang tải vở...',
+          cls: 'mybook-loading',
+        })
+      }
+    }, 80)
+    const cancelLoading = () => {
+      hasFinished = true
+      clearTimeout(loadingTimer)
+      if (loadingEl) {
+        ;(loadingEl as HTMLElement).remove()
+        loadingEl = null
+      }
+    }
 
     const file = this.app.vault.getAbstractFileByPath(path)
     if (!(file instanceof TFile)) {
-      loadingEl.setText(`Không tìm thấy file ${path}`)
+      cancelLoading()
+      container.createEl('div', { text: `Không tìm thấy file ${path}`, cls: 'mybook-loading' })
       if (this.loadingPath === path) this.loadingPath = null
       return
     }
@@ -523,16 +511,23 @@ class MyBookView extends ItemView {
     try {
       raw = await this.app.vault.read(file)
     } catch {
-      loadingEl.setText(`Không đọc được file ${file.path}`)
+      cancelLoading()
+      container.createEl('div', { text: `Không đọc được file ${file.path}`, cls: 'mybook-loading' })
       if (this.loadingPath === path) this.loadingPath = null
       return
     }
     // Trong lúc đọc file, user đã mở sang file khác → bỏ, tránh render đè
-    if (this.loadingPath !== path) return
+    if (this.loadingPath !== path) {
+      cancelLoading()
+      return
+    }
 
     const parsed = importNotebookFromMarkdown(raw)
     // Parse xong mà đã chuyển file khác → bỏ, tránh render đè (file 11MB parse lâu)
-    if (this.loadingPath !== path) return
+    if (this.loadingPath !== path) {
+      cancelLoading()
+      return
+    }
     const initialMeta = parsed
       ? parsed.meta
       : getEmptyNotebook(file.basename, 'grid').meta
@@ -540,6 +535,7 @@ class MyBookView extends ItemView {
       ? parsed.pages
       : getEmptyNotebook(file.basename, 'grid').pages
 
+    cancelLoading()
     container.empty()
     this.root = createRoot(container as HTMLElement)
     if (this.loadingPath === path) this.loadingPath = null

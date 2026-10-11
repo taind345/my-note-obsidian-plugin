@@ -87,7 +87,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
   const [zoom, setZoom] = useState(1.0)
   const [activeTool, setActiveTool] = useState<ToolType>('select')
   const [strokeColor, setStrokeColor] = useState('#1e293b')
-  const [strokeWidth, setStrokeWidth] = useState(4)
+  const [strokeWidth, setStrokeWidth] = useState(2.8)
   const [isToolLocked, setIsToolLocked] = useState(false)
   const [savedState, setSavedState] = useState<'saved' | 'dirty'>('saved')
   const [showExport, setShowExport] = useState(false)
@@ -118,7 +118,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     const el = scrollElRef.current
     const w = el ? el.clientWidth : scrollW
     if (w > 0) {
-      setZoom(Number(Math.min(2.0, Math.max(0.3, (w - 32) / 800)).toFixed(2)))
+      setZoom(Number(Math.min(2.0, Math.max(0.3, (w - 48) / 800)).toFixed(2)))
     }
   }
 
@@ -207,12 +207,153 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     forceHist((x) => x + 1)
   }, [])
 
-  // Ctrl+Z / Ctrl+Y của vở + phím số 1-9 chọn nhanh công cụ (bỏ qua khi đang gõ)
+  // Tự động tìm container cuộn thật sự
+  const getScroller = useCallback((): HTMLElement | null => {
+    const el = scrollElRef.current
+    if (el && el.scrollHeight > el.clientHeight + 2) return el
+    let p = hostRef.current?.parentElement
+    while (p) {
+      if (p.scrollHeight > p.clientHeight + 2) return p
+      p = p.parentElement
+    }
+    return el
+  }, [])
+
+  // Cuộn mượt bằng phím qua requestAnimationFrame (lerp 60-120fps không giật, cộng dồn nhấp phím)
+  const animScrollRef = useRef<{
+    rafId: number | null
+    targetTop: number
+    targetLeft: number
+  }>({
+    rafId: null,
+    targetTop: 0,
+    targetLeft: 0,
+  })
+
+  const cancelKeyScroll = useCallback(() => {
+    if (animScrollRef.current.rafId !== null) {
+      cancelAnimationFrame(animScrollRef.current.rafId)
+      animScrollRef.current.rafId = null
+    }
+  }, [])
+
+  const queueSmoothScroll = useCallback(
+    (deltaTop: number, deltaLeft: number, absolute?: { top?: number; left?: number }) => {
+      const scroller = getScroller()
+      if (!scroller) return
+
+      const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+      const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
+
+      if (animScrollRef.current.rafId === null) {
+        animScrollRef.current.targetTop = scroller.scrollTop
+        animScrollRef.current.targetLeft = scroller.scrollLeft
+      }
+
+      if (absolute) {
+        if (absolute.top !== undefined) animScrollRef.current.targetTop = Math.max(0, Math.min(maxTop, absolute.top))
+        if (absolute.left !== undefined) animScrollRef.current.targetLeft = Math.max(0, Math.min(maxLeft, absolute.left))
+      } else {
+        animScrollRef.current.targetTop = Math.max(0, Math.min(maxTop, animScrollRef.current.targetTop + deltaTop))
+        animScrollRef.current.targetLeft = Math.max(0, Math.min(maxLeft, animScrollRef.current.targetLeft + deltaLeft))
+      }
+
+      if (animScrollRef.current.rafId !== null) return
+
+      const step = () => {
+        const s = getScroller()
+        if (!s) {
+          cancelKeyScroll()
+          return
+        }
+
+        const maxTopNow = Math.max(0, s.scrollHeight - s.clientHeight)
+        const maxLeftNow = Math.max(0, s.scrollWidth - s.clientWidth)
+
+        animScrollRef.current.targetTop = Math.max(0, Math.min(maxTopNow, animScrollRef.current.targetTop))
+        animScrollRef.current.targetLeft = Math.max(0, Math.min(maxLeftNow, animScrollRef.current.targetLeft))
+
+        const currentTop = s.scrollTop
+        const currentLeft = s.scrollLeft
+        const diffTop = animScrollRef.current.targetTop - currentTop
+        const diffLeft = animScrollRef.current.targetLeft - currentLeft
+
+        // 1. Khi khoảng cách còn nhỏ (<= 1.5px), snap thẳng về đích và kết thúc
+        if (Math.abs(diffTop) <= 1.5 && Math.abs(diffLeft) <= 1.5) {
+          s.scrollTop = animScrollRef.current.targetTop
+          s.scrollLeft = animScrollRef.current.targetLeft
+          cancelKeyScroll()
+          return
+        }
+
+        // 2. Tính bước nhảy lerp, đảm bảo mỗi frame di chuyển tối thiểu 1px để không bị kẹt bởi subpixel rounding
+        let stepY = diffTop * 0.25
+        if (Math.abs(stepY) < 1) {
+          stepY = Math.sign(diffTop) * Math.min(1, Math.abs(diffTop))
+        }
+
+        let stepX = diffLeft * 0.25
+        if (Math.abs(stepX) < 1) {
+          stepX = Math.sign(diffLeft) * Math.min(1, Math.abs(diffLeft))
+        }
+
+        const nextTop = currentTop + stepY
+        const nextLeft = currentLeft + stepX
+
+        s.scrollTop = nextTop
+        s.scrollLeft = nextLeft
+
+        // 3. Nếu browser đã chạm biên cứng (0 hoặc max) và không thể di chuyển thêm
+        if (s.scrollTop === currentTop && s.scrollLeft === currentLeft) {
+          s.scrollTop = animScrollRef.current.targetTop
+          s.scrollLeft = animScrollRef.current.targetLeft
+          cancelKeyScroll()
+          return
+        }
+
+        animScrollRef.current.rafId = requestAnimationFrame(step)
+      }
+
+      animScrollRef.current.rafId = requestAnimationFrame(step)
+    },
+    [getScroller, cancelKeyScroll]
+  )
+
+  // Hủy animation cuộn phím nếu user cuộn chuột/touchpad hoặc tương tác
+  useEffect(() => {
+    const el = scrollElRef.current
+    if (!el) return
+    const onUserInteract = () => cancelKeyScroll()
+    el.addEventListener('wheel', onUserInteract, { passive: true })
+    el.addEventListener('pointerdown', onUserInteract, { passive: true })
+    return () => {
+      el.removeEventListener('wheel', onUserInteract)
+      el.removeEventListener('pointerdown', onUserInteract)
+      cancelKeyScroll()
+    }
+  }, [cancelKeyScroll])
+
+  // Phím tắt: Undo/Redo, đổi tool 1-9, và cuộn trang mượt bằng phím mũi tên
   const TOOL_ORDER: ToolType[] = ['select', 'rect', 'circle', 'arrow', 'line', 'pen', 'highlighter', 'text', 'eraser']
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') return
+      if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable) return
+
+      const host = hostRef.current
+      if (!host || !host.isConnected) return
+      // Không xử lý nếu tab đang ẩn trong Obsidian
+      if (host.offsetParent === null && host.clientHeight === 0) return
+
+      const activeEl = document.activeElement
+      const leaf = host.closest('.workspace-leaf')
+      // Đang trong tab vở nếu activeEl nằm trong host, hoặc tab leaf đang active, hoặc click vào workspace
+      const isInside =
+        host.contains(activeEl) ||
+        (leaf ? leaf.contains(activeEl) || leaf.classList.contains('mod-active') : false) ||
+        activeEl === document.body ||
+        !activeEl
+
       if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const tool = TOOL_ORDER[Number(e.key) - 1]
         if (tool) {
@@ -224,18 +365,67 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault()
         handleUndo()
+        return
       } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
         e.preventDefault()
         handleRedo()
+        return
       } else if (e.key === 'Escape') {
         setSelText([])
         setSelDraw([])
         setSelImg([])
+        return
+      }
+
+      // Xử lý cuộn bằng phím mũi tên & phím điều hướng khi đang trong notebook
+      if (isInside) {
+        const scroller = getScroller()
+        if (!scroller) return
+
+        const step = e.repeat ? 55 : 120
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          queueSmoothScroll(step, 0)
+          return
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          queueSmoothScroll(-step, 0)
+          return
+        } else if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (scroller.scrollWidth > scroller.clientWidth) {
+            e.preventDefault()
+            queueSmoothScroll(0, step)
+            return
+          }
+        } else if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (scroller.scrollWidth > scroller.clientWidth) {
+            e.preventDefault()
+            queueSmoothScroll(0, -step)
+            return
+          }
+        } else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+          e.preventDefault()
+          queueSmoothScroll(scroller.clientHeight * 0.85, 0)
+          return
+        } else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
+          e.preventDefault()
+          queueSmoothScroll(-scroller.clientHeight * 0.85, 0)
+          return
+        } else if (e.key === 'Home') {
+          e.preventDefault()
+          queueSmoothScroll(0, 0, { top: 0 })
+          return
+        } else if (e.key === 'End') {
+          e.preventDefault()
+          queueSmoothScroll(0, 0, { top: scroller.scrollHeight - scroller.clientHeight })
+          return
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [handleUndo, handleRedo])
+  }, [handleUndo, handleRedo, getScroller, queueSmoothScroll])
 
   // --- TextBox ---
   const addTextBox = (pageId: string, box: TextBoxData) => {
@@ -407,7 +597,10 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
   }
 
   return (
-    <div ref={hostRef} className="mybook-obsidian-host mybook-notebook-view">
+    <div
+      ref={hostRef}
+      className="mybook-obsidian-host mybook-notebook-view"
+    >
       {/* Toolbar đứng NGOÀI khung cuộn + sticky top:0 (xem obsidian-overrides.css):
           - khung trong cuộn được → toolbar nằm yên trên cùng (flex column)
           - Obsidian cuộn cả view (chuỗi height:100% gãy, khung trong không cuộn)
@@ -451,6 +644,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
         zoomLabel={`${Math.round(zoom * 100)}%`}
         onZoomIn={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(1))))}
         onZoomOut={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(1))))}
+        onResetZoom={() => setZoom(1.0)}
         onFitZoom={fitZoom}
         onAddPage={addPage}
         onExportPdf={() => setShowExport(true)}
@@ -458,61 +652,69 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
       <div ref={scrollElRef} className="mybook-pages-scroll">
         <ScrollWidthReporter onWidth={reportScrollW} />
         <div
-          className="mybook-pages-fitwrap"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          className="mybook-zoom-container"
+          style={{
+            width: `${Math.round(800 * zoom)}px`,
+            minHeight: `${Math.round((pages.length * 1100 + Math.max(0, pages.length - 1) * 16) * zoom)}px`,
+          }}
         >
-          {pages.map((page) => (
-          <div key={page.id} className="mybook-page-wrap">
-            <NotebookPage
-              page={page}
-              activeTool={activeTool}
-              strokeColor={strokeColor}
-              strokeWidth={strokeWidth}
-              linePitch={linePitch}
-              selectedTextBoxIds={selText}
-              selectedElementIds={selDraw}
-              fontFamily="cascadia"
-              isToolLocked={isToolLocked}
-              handDrawnStyle={true}
-              canvasPixelScale={zoom}
-              onSelectTextBox={selectTextBox}
-              onSelectTextBoxes={(ids) => {
-                setSelText(ids)
-                if (ids.length > 0) {
-                  setSelDraw([])
-                  setSelImg([])
-                }
-              }}
-              onSelectElement={selectDrawingSingle}
-              onSelectElements={(ids) => {
-                setSelDraw(ids)
-                if (ids.length > 0) {
-                  setSelText([])
-                  setSelImg([])
-                }
-              }}
-              onUpdateTextBox={updateTextBox}
-              onDeleteTextBox={deleteTextBox}
-              onDuplicateTextBox={duplicateTextBox}
-              onAddTextBox={addTextBox}
-              onAddDrawingElement={addDrawing}
-              onUpdateDrawingElement={updateDrawing}
-              onRemoveDrawingElement={removeDrawing}
-              onReorderDrawing={reorderDrawing}
-              selectedImageIds={selImg}
-              onSelectImages={selectImages}
-              onAddImage={addImage}
-              onUpdateImage={updateImage}
-              onRemoveImage={removeImage}
-              onDuplicateImage={duplicateImage}
-              onReorderImage={reorderImage}
-              onAutoSwitchToSelect={() => {
-                if (!isToolLocked) setActiveTool('select')
-              }}
-              onNavigateLink={onNavigateLink}
-            />
-            </div>
-          ))}
+          <div
+            className="mybook-pages-fitwrap"
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+          >
+            {pages.map((page) => (
+            <div key={page.id} className="mybook-page-wrap">
+              <NotebookPage
+                page={page}
+                activeTool={activeTool}
+                strokeColor={strokeColor}
+                strokeWidth={strokeWidth}
+                linePitch={linePitch}
+                selectedTextBoxIds={selText}
+                selectedElementIds={selDraw}
+                fontFamily="cascadia"
+                isToolLocked={isToolLocked}
+                handDrawnStyle={true}
+                canvasPixelScale={zoom}
+                onSelectTextBox={selectTextBox}
+                onSelectTextBoxes={(ids) => {
+                  setSelText(ids)
+                  if (ids.length > 0) {
+                    setSelDraw([])
+                    setSelImg([])
+                  }
+                }}
+                onSelectElement={selectDrawingSingle}
+                onSelectElements={(ids) => {
+                  setSelDraw(ids)
+                  if (ids.length > 0) {
+                    setSelText([])
+                    setSelImg([])
+                  }
+                }}
+                onUpdateTextBox={updateTextBox}
+                onDeleteTextBox={deleteTextBox}
+                onDuplicateTextBox={duplicateTextBox}
+                onAddTextBox={addTextBox}
+                onAddDrawingElement={addDrawing}
+                onUpdateDrawingElement={updateDrawing}
+                onRemoveDrawingElement={removeDrawing}
+                onReorderDrawing={reorderDrawing}
+                selectedImageIds={selImg}
+                onSelectImages={selectImages}
+                onAddImage={addImage}
+                onUpdateImage={updateImage}
+                onRemoveImage={removeImage}
+                onDuplicateImage={duplicateImage}
+                onReorderImage={reorderImage}
+                onAutoSwitchToSelect={() => {
+                  if (!isToolLocked) setActiveTool('select')
+                }}
+                onNavigateLink={onNavigateLink}
+              />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
       {showExport && (

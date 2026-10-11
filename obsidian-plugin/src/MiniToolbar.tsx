@@ -32,8 +32,14 @@ interface MiniToolbarProps {
   onExportPdf: () => void
 }
 
-/** Nấc nét riêng của plugin (giữ nguyên UX cũ) — map sang WidthDef để dùng chung WidthPicker */
-const WIDTHS: WidthDef[] = [1, 2, 4, 6, 10].map((w) => ({ label: `${w}`, value: w, title: `${w}px` }))
+/** Nấc nét riêng của plugin — ngòi 2 và ngòi 3 giảm còn 70% (2px -> 1.4px, 4px -> 2.8px) */
+const WIDTHS: WidthDef[] = [
+  { label: '1', value: 1, title: '1px' },
+  { label: '1.4', value: 1.4, title: '1.4px' },
+  { label: '2.8', value: 2.8, title: '2.8px' },
+  { label: '6', value: 6, title: '6px' },
+  { label: '10', value: 10, title: '10px' },
+]
 
 function toolBtn(
   active: boolean,

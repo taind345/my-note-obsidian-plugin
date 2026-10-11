@@ -10,8 +10,8 @@
      (bất kỳ overflow nào khác visible cũng thành "scroll container" gần nhất
      và nuốt hiệu ứng sticky). */
   overflow: visible;
-  background: var(--desk-bg, #e5e5e5);
-  color: var(--text-main, #0f172a);
+  background: var(--background-primary, var(--desk-bg, #e5e5e5));
+  color: var(--text-normal, var(--text-main, #0f172a));
 }
 
 .mybook-loading {
@@ -53,25 +53,38 @@
 .mybook-pages-scroll {
   flex: 1;
   min-height: 0;
+  width: 100%;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  padding: 16px 8px 80px 8px;
+  /* Không dùng align-items: center cứng trên flex container để tránh cắt xén lề trái khi zoom > 100% */
+  padding: 24px 20px 120px 20px;
+  outline: none;
+}
+
+/* Container chứa tỷ lệ zoom thực tế trong luồng layout (đảm bảo scrollHeight và lề dưới luôn chính xác khi scale) */
+.mybook-zoom-container {
+  margin: 0 auto;
+  flex-shrink: 0;
+  position: relative;
 }
 
 /* Lớp bọc scale (transform KHÔNG nằm trên khung cuộn để không vỡ scroll) */
 .mybook-pages-fitwrap {
-  width: max-content;
+  width: 800px;
   max-width: none;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px; /* Khoảng cách giữa các trang: 16px (bằng 1 nửa 32px) */
 }
 
 .mybook-page-wrap {
   flex-shrink: 0;
-  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.13), 0 2px 6px -1px rgba(0, 0, 0, 0.07);
+  border-radius: 2px;
 }
 
 /* Toolbar đứng NGOÀI khung cuộn, con trực tiếp của .mybook-notebook-view.
@@ -326,4 +339,17 @@
 .mini-save-dot {
   font-size: 11px;
   line-height: 1;
+}
+
+/* Con trỏ vẽ: crosshair mặc định khi chọn công cụ vẽ */
+.mybook-obsidian-host .page-drawing-layer.is-active-drawing:not(.is-eraser-mode),
+.mybook-obsidian-host .page-drawing-layer.is-active-drawing:not(.is-eraser-mode) canvas,
+.mybook-obsidian-host .page-drawing-layer.is-active-drawing:not(.is-eraser-mode) .active-canvas {
+  cursor: crosshair !important;
+}
+
+.mybook-obsidian-host .page-drawing-layer.is-eraser-mode,
+.mybook-obsidian-host .page-drawing-layer.is-eraser-mode canvas,
+.mybook-obsidian-host .page-drawing-layer.is-eraser-mode .active-canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23fbcfe8' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21' /%3E%3Cpath d='M22 21H7' stroke='%23334155' /%3E%3Cpath d='m5 11 9 9' stroke='%23334155' /%3E%3C/svg%3E") 4 20, crosshair !important;
 }
