@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import * as React from 'react'
 import type {
   PageData,
@@ -9,6 +9,7 @@ import type {
   PageImageData,
 } from '@/shared/types/notebook'
 import { NotebookPage } from '@/features/notebook/components/NotebookPage'
+import { useVirtualPages } from '@/features/notebook/hooks/useVirtualPages'
 import { ExportPdfModal } from '@/shared/ui/ExportPdfModal'
 import { debounce } from '@/shared/lib/debounce'
 import { MiniToolbar } from './MiniToolbar'
@@ -94,6 +95,18 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
   // Host root (có class scope CSS): modal + node offscreen portal vào đây
   // để style áp đúng thay vì rớt ra document.body
   const hostRef = useRef<HTMLDivElement | null>(null)
+
+  // Virtualize: chỉ mount trang trong/kề viewport (mở file tức thì, cuộn mượt)
+  const pageIds = useMemo(() => pages.map((p) => p.id), [pages])
+  const { visibleIds, observeRef, pinId } = useVirtualPages(pageIds)
+
+  // Ref tới pages hiện tại cho callbacks ổn định (tránh stale closure khi memo)
+  const pagesRef = useRef(pages)
+  useEffect(() => {
+    pagesRef.current = pages
+  }, [pages])
+  // Đếm id clone (tạo ngoài setState updater để updater giữ pure)
+  const cloneIdRef = useRef(0)
 
   // Lệnh palette "Xuất PDF" từ main.ts → mở modal của đúng vở này
   useEffect(() => {
@@ -237,14 +250,17 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     return () => window.removeEventListener('keydown', onKey)
   }, [handleUndo, handleRedo])
 
-  // --- TextBox ---
-  const addTextBox = (pageId: string, box: TextBoxData) => {
-    mutatePage(pageId, (p) => ({ ...p, textBoxes: [...p.textBoxes, box] }))
-    setSelText([box.id])
-    setSelDraw([])
-    setSelImg([])
-  }
-  const updateTextBox = (pageId: string, boxId: string, u: Partial<TextBoxData>) => {
+  // --- TextBox (toàn bộ useCallback ổn định để memo NotebookPage có tác dụng) ---
+  const addTextBox = useCallback(
+    (pageId: string, box: TextBoxData) => {
+      mutatePage(pageId, (p) => ({ ...p, textBoxes: [...p.textBoxes, box] }))
+      setSelText([box.id])
+      setSelDraw([])
+      setSelImg([])
+    },
+    [mutatePage]
+  )
+  const updateTextBox = useCallback((pageId: string, boxId: string, u: Partial<TextBoxData>) => {
     setPages((curr) =>
       curr.map((p) =>
         p.id === pageId
@@ -253,67 +269,87 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
       )
     )
     setSavedState('dirty')
-  }
-  const deleteTextBox = (pageId: string, boxId: string) => {
-    mutatePage(pageId, (p) => ({ ...p, textBoxes: p.textBoxes.filter((b) => b.id !== boxId) }))
-    setSelText((c) => c.filter((id) => id !== boxId))
-  }
-  const duplicateTextBox = (pageId: string, boxId: string) => {
-    const page = pages.find((p) => p.id === pageId)
-    const box = page?.textBoxes.find((b) => b.id === boxId)
-    if (!box) return
-    const cloneBox: TextBoxData = {
-      ...clone(box),
-      id: `tb_${pageId}_${Date.now()}`,
-      x: Math.min(box.x + 20, 800 - box.width),
-      y: Math.min(box.y + 32, 1050),
-      isEditing: false,
-      isLocked: false,
-    }
-    mutatePage(pageId, (p) => ({ ...p, textBoxes: [...p.textBoxes, cloneBox] }))
-    setSelText([cloneBox.id])
-  }
+  }, [])
+  const deleteTextBox = useCallback(
+    (pageId: string, boxId: string) => {
+      mutatePage(pageId, (p) => ({ ...p, textBoxes: p.textBoxes.filter((b) => b.id !== boxId) }))
+      setSelText((c) => c.filter((id) => id !== boxId))
+    },
+    [mutatePage]
+  )
+  const duplicateTextBox = useCallback(
+    (pageId: string, boxId: string) => {
+      const page = pagesRef.current.find((p) => p.id === pageId)
+      if (!page?.textBoxes.some((b) => b.id === boxId)) return
+      const id = `tb_${pageId}_${Date.now()}_${cloneIdRef.current++}`
+      mutatePage(pageId, (p) => {
+        const box = p.textBoxes.find((b) => b.id === boxId)
+        if (!box) return p
+        const cloneBox: TextBoxData = {
+          ...clone(box),
+          id,
+          x: Math.min(box.x + 20, 800 - box.width),
+          y: Math.min(box.y + 32, 1050),
+          isEditing: false,
+          isLocked: false,
+        }
+        return { ...p, textBoxes: [...p.textBoxes, cloneBox] }
+      })
+      setSelText([id])
+    },
+    [mutatePage]
+  )
 
-  const selectTextBox = (id: string | null) => {
+  const selectTextBox = useCallback((id: string | null) => {
     setSelText(id ? [id] : [])
     if (id) {
       setSelDraw([])
       setSelImg([])
     }
-  }
-  const selectDrawings = (ids: string[]) => {
+  }, [])
+  const selectTextBoxes = useCallback((ids: string[]) => {
+    setSelText(ids)
+    if (ids.length > 0) {
+      setSelDraw([])
+      setSelImg([])
+    }
+  }, [])
+  const selectDrawings = useCallback((ids: string[]) => {
     setSelDraw(ids)
     if (ids.length > 0) {
       setSelText([])
       setSelImg([])
     }
-  }
-  const selectImages = (ids: string[]) => {
+  }, [])
+  const selectImages = useCallback((ids: string[]) => {
     setSelImg(ids)
     if (ids.length > 0) {
       setSelText([])
       setSelDraw([])
     }
-  }
-  const selectDrawingSingle = (id: string | null) => {
+  }, [])
+  const selectDrawingSingle = useCallback((id: string | null) => {
     setSelDraw(id ? [id] : [])
     if (id) {
-      const found = pages.flatMap((p) => p.drawings).find((d) => d.id === id)
+      const found = pagesRef.current.flatMap((p) => p.drawings).find((d) => d.id === id)
       if (found) {
         setStrokeColor(found.color)
         setStrokeWidth(found.strokeWidth)
       }
     }
-  }
+  }, [])
 
   // --- Drawing ---
-  const addDrawing = (pageId: string, elem: DrawingElement) => {
-    mutatePage(pageId, (p) => ({ ...p, drawings: [...p.drawings, elem] }))
-    setSelDraw([elem.id])
-    setSelText([])
-    setSelImg([])
-  }
-  const updateDrawing = (pageId: string, elemId: string, u: Partial<DrawingElement>) => {
+  const addDrawing = useCallback(
+    (pageId: string, elem: DrawingElement) => {
+      mutatePage(pageId, (p) => ({ ...p, drawings: [...p.drawings, elem] }))
+      setSelDraw([elem.id])
+      setSelText([])
+      setSelImg([])
+    },
+    [mutatePage]
+  )
+  const updateDrawing = useCallback((pageId: string, elemId: string, u: Partial<DrawingElement>) => {
     setPages((curr) =>
       curr.map((p) =>
         p.id === pageId
@@ -322,31 +358,42 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
       )
     )
     setSavedState('dirty')
-  }
-  const removeDrawing = (pageId: string, elemId: string) => {
-    mutatePage(pageId, (p) => ({ ...p, drawings: p.drawings.filter((d) => d.id !== elemId) }))
-    setSelDraw((c) => c.filter((id) => id !== elemId))
-  }
-  const reorderDrawing = (pageId: string, elemId: string, dir: 'front' | 'back') => {
-    const page = pages.find((p) => p.id === pageId)
-    if (!page) return
-    const idx = page.drawings.findIndex((d) => d.id === elemId)
-    if (idx < 0) return
-    const next = [...page.drawings]
-    const [el] = next.splice(idx, 1)
-    if (dir === 'front') next.push(el)
-    else next.unshift(el)
-    mutatePage(pageId, (p) => ({ ...p, drawings: next }))
-  }
+  }, [])
+  const removeDrawing = useCallback(
+    (pageId: string, elemId: string) => {
+      mutatePage(pageId, (p) => ({ ...p, drawings: p.drawings.filter((d) => d.id !== elemId) }))
+      setSelDraw((c) => c.filter((id) => id !== elemId))
+    },
+    [mutatePage]
+  )
+  const reorderDrawing = useCallback(
+    (pageId: string, elemId: string, dir: 'front' | 'back') => {
+      const page = pagesRef.current.find((p) => p.id === pageId)
+      if (!page || page.drawings.findIndex((d) => d.id === elemId) < 0) return
+      mutatePage(pageId, (p) => {
+        const idx = p.drawings.findIndex((d) => d.id === elemId)
+        if (idx < 0) return p
+        const next = [...p.drawings]
+        const [el] = next.splice(idx, 1)
+        if (dir === 'front') next.push(el)
+        else next.unshift(el)
+        return { ...p, drawings: next }
+      })
+    },
+    [mutatePage]
+  )
 
   // --- Image ---
-  const addImage = (pageId: string, img: PageImageData) => {
-    mutatePage(pageId, (p) => ({ ...p, images: [img, ...(p.images ?? [])] }))
-    setSelImg([img.id])
-    setSelDraw([])
-    setSelText([])
-  }
-  const updateImage = (pageId: string, imageId: string, u: Partial<PageImageData>) => {
+  const addImage = useCallback(
+    (pageId: string, img: PageImageData) => {
+      mutatePage(pageId, (p) => ({ ...p, images: [img, ...(p.images ?? [])] }))
+      setSelImg([img.id])
+      setSelDraw([])
+      setSelText([])
+    },
+    [mutatePage]
+  )
+  const updateImage = useCallback((pageId: string, imageId: string, u: Partial<PageImageData>) => {
     setPages((curr) =>
       curr.map((p) =>
         p.id === pageId
@@ -355,36 +402,55 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
       )
     )
     setSavedState('dirty')
-  }
-  const removeImage = (pageId: string, imageId: string) => {
-    mutatePage(pageId, (p) => ({ ...p, images: (p.images ?? []).filter((im) => im.id !== imageId) }))
-    setSelImg((c) => c.filter((id) => id !== imageId))
-  }
-  const duplicateImage = (pageId: string, imageId: string) => {
-    const page = pages.find((p) => p.id === pageId)
-    const img = (page?.images ?? []).find((i) => i.id === imageId)
-    if (!img) return
-    const copy: PageImageData = {
-      ...clone(img),
-      id: `img_${pageId}_${Date.now()}`,
-      x: Math.min(800 - img.width - 16, img.x + 20),
-      y: Math.min(1100 - img.height - 60, img.y + 20),
-      isLocked: false,
-    }
-    mutatePage(pageId, (p) => ({ ...p, images: [...(p.images ?? []), copy] }))
-    setSelImg([copy.id])
-  }
-  const reorderImage = (pageId: string, imageId: string, dir: 'front' | 'back') => {
-    const page = pages.find((p) => p.id === pageId)
-    const list = page?.images ?? []
-    const idx = list.findIndex((im) => im.id === imageId)
-    if (idx < 0) return
-    const next = [...list]
-    const [im] = next.splice(idx, 1)
-    if (dir === 'front') next.push(im)
-    else next.unshift(im)
-    mutatePage(pageId, (p) => ({ ...p, images: next }))
-  }
+  }, [])
+  const removeImage = useCallback(
+    (pageId: string, imageId: string) => {
+      mutatePage(pageId, (p) => ({ ...p, images: (p.images ?? []).filter((im) => im.id !== imageId) }))
+      setSelImg((c) => c.filter((id) => id !== imageId))
+    },
+    [mutatePage]
+  )
+  const duplicateImage = useCallback(
+    (pageId: string, imageId: string) => {
+      const page = pagesRef.current.find((p) => p.id === pageId)
+      if (!(page?.images ?? []).some((i) => i.id === imageId)) return
+      const id = `img_${pageId}_${Date.now()}_${cloneIdRef.current++}`
+      mutatePage(pageId, (p) => {
+        const img = (p.images ?? []).find((i) => i.id === imageId)
+        if (!img) return p
+        const copy: PageImageData = {
+          ...clone(img),
+          id,
+          x: Math.min(800 - img.width - 16, img.x + 20),
+          y: Math.min(1100 - img.height - 60, img.y + 20),
+          isLocked: false,
+        }
+        return { ...p, images: [...(p.images ?? []), copy] }
+      })
+      setSelImg([id])
+    },
+    [mutatePage]
+  )
+  const reorderImage = useCallback(
+    (pageId: string, imageId: string, dir: 'front' | 'back') => {
+      const page = pagesRef.current.find((p) => p.id === pageId)
+      if ((page?.images ?? []).findIndex((im) => im.id === imageId) < 0) return
+      mutatePage(pageId, (p) => {
+        const list = p.images ?? []
+        const idx = list.findIndex((im) => im.id === imageId)
+        if (idx < 0) return p
+        const next = [...list]
+        const [im] = next.splice(idx, 1)
+        if (dir === 'front') next.push(im)
+        else next.unshift(im)
+        return { ...p, images: next }
+      })
+    },
+    [mutatePage]
+  )
+  const autoSwitchToSelect = useCallback(() => {
+    if (!isToolLocked) setActiveTool('select')
+  }, [isToolLocked])
 
   // --- Pages ---
   const addPage = () => {
@@ -401,6 +467,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     pushHistory(pages, meta.pageIds)
     const nextPages = [...pages, newPage]
     applyPages(nextPages, [...meta.pageIds, newPage.id])
+    pinId(newPage.id) // mount ngay để scrollIntoView có node để cuộn tới
     requestAnimationFrame(() => {
       document.getElementById(`page-sheet-${newPage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -461,58 +528,58 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
           className="mybook-pages-fitwrap"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
         >
-          {pages.map((page) => (
-          <div key={page.id} className="mybook-page-wrap">
-            <NotebookPage
-              page={page}
-              activeTool={activeTool}
-              strokeColor={strokeColor}
-              strokeWidth={strokeWidth}
-              linePitch={linePitch}
-              selectedTextBoxIds={selText}
-              selectedElementIds={selDraw}
-              fontFamily="cascadia"
-              isToolLocked={isToolLocked}
-              handDrawnStyle={true}
-              canvasPixelScale={zoom}
-              onSelectTextBox={selectTextBox}
-              onSelectTextBoxes={(ids) => {
-                setSelText(ids)
-                if (ids.length > 0) {
-                  setSelDraw([])
-                  setSelImg([])
-                }
-              }}
-              onSelectElement={selectDrawingSingle}
-              onSelectElements={(ids) => {
-                setSelDraw(ids)
-                if (ids.length > 0) {
-                  setSelText([])
-                  setSelImg([])
-                }
-              }}
-              onUpdateTextBox={updateTextBox}
-              onDeleteTextBox={deleteTextBox}
-              onDuplicateTextBox={duplicateTextBox}
-              onAddTextBox={addTextBox}
-              onAddDrawingElement={addDrawing}
-              onUpdateDrawingElement={updateDrawing}
-              onRemoveDrawingElement={removeDrawing}
-              onReorderDrawing={reorderDrawing}
-              selectedImageIds={selImg}
-              onSelectImages={selectImages}
-              onAddImage={addImage}
-              onUpdateImage={updateImage}
-              onRemoveImage={removeImage}
-              onDuplicateImage={duplicateImage}
-              onReorderImage={reorderImage}
-              onAutoSwitchToSelect={() => {
-                if (!isToolLocked) setActiveTool('select')
-              }}
-              onNavigateLink={onNavigateLink}
-            />
-            </div>
-          ))}
+          {pages.map((page) => {
+            const mounted = visibleIds.has(page.id)
+            return (
+              <div
+                key={page.id}
+                ref={observeRef(page.id)}
+                data-page-wrap-id={page.id}
+                className="mybook-page-wrap"
+              >
+                {mounted ? (
+                  <NotebookPage
+                    page={page}
+                    activeTool={activeTool}
+                    strokeColor={strokeColor}
+                    strokeWidth={strokeWidth}
+                    linePitch={linePitch}
+                    selectedTextBoxIds={selText}
+                    selectedElementIds={selDraw}
+                    fontFamily="cascadia"
+                    isToolLocked={isToolLocked}
+                    handDrawnStyle={true}
+                    canvasPixelScale={zoom}
+                    onSelectTextBox={selectTextBox}
+                    onSelectTextBoxes={selectTextBoxes}
+                    onSelectElement={selectDrawingSingle}
+                    onSelectElements={selectDrawings}
+                    onUpdateTextBox={updateTextBox}
+                    onDeleteTextBox={deleteTextBox}
+                    onDuplicateTextBox={duplicateTextBox}
+                    onAddTextBox={addTextBox}
+                    onAddDrawingElement={addDrawing}
+                    onUpdateDrawingElement={updateDrawing}
+                    onRemoveDrawingElement={removeDrawing}
+                    onReorderDrawing={reorderDrawing}
+                    selectedImageIds={selImg}
+                    onSelectImages={selectImages}
+                    onAddImage={addImage}
+                    onUpdateImage={updateImage}
+                    onRemoveImage={removeImage}
+                    onDuplicateImage={duplicateImage}
+                    onReorderImage={reorderImage}
+                    onAutoSwitchToSelect={autoSwitchToSelect}
+                    onNavigateLink={onNavigateLink}
+                  />
+                ) : (
+                  // Placeholder giữ đúng kích thước layout để scroll không lệch;
+                  // canvas/markdown/ảnh chỉ mount khi cuộn tới (mở file tức thì)
+                  <div className="mybook-page-placeholder" aria-hidden="true" />
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
       {showExport && (

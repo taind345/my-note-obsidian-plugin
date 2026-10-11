@@ -53,7 +53,62 @@ interface NotebookPageProps {
   canvasPixelScale?: number
 }
 
-export function NotebookPage({
+function sameIdList(a?: string[], b?: string[]): boolean {
+  if (a === b) return true
+  if (!a || !b || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+/**
+ * Compare tường minh cho memo: trang khác giữ nguyên reference khi mutation
+ * (mọi handler đều map + spread đúng target) nên `page ===` là đủ; selection
+ * và callbacks so theo reference (parent chỉ tạo mới khi thật sự đổi).
+ * So thiếu prop nào = UI stale — thêm prop mới vào interface thì bổ sung ở đây.
+ */
+function areNotebookPagePropsEqual(prev: NotebookPageProps, next: NotebookPageProps): boolean {
+  return (
+    prev.page === next.page &&
+    prev.activeTool === next.activeTool &&
+    prev.strokeColor === next.strokeColor &&
+    prev.strokeWidth === next.strokeWidth &&
+    prev.linePitch === next.linePitch &&
+    sameIdList(prev.selectedTextBoxIds, next.selectedTextBoxIds) &&
+    sameIdList(prev.selectedElementIds, next.selectedElementIds) &&
+    sameIdList(prev.selectedImageIds, next.selectedImageIds) &&
+    prev.fontFamily === next.fontFamily &&
+    prev.drawingEngineMode === next.drawingEngineMode &&
+    prev.isSpineLeft === next.isSpineLeft &&
+    prev.isSpineRight === next.isSpineRight &&
+    prev.onSelectTextBox === next.onSelectTextBox &&
+    prev.onSelectTextBoxes === next.onSelectTextBoxes &&
+    prev.onSelectElement === next.onSelectElement &&
+    prev.onSelectElements === next.onSelectElements &&
+    prev.onUpdateTextBox === next.onUpdateTextBox &&
+    prev.onDeleteTextBox === next.onDeleteTextBox &&
+    prev.onAddTextBox === next.onAddTextBox &&
+    prev.onDuplicateTextBox === next.onDuplicateTextBox &&
+    prev.onAddDrawingElement === next.onAddDrawingElement &&
+    prev.onUpdateDrawingElement === next.onUpdateDrawingElement &&
+    prev.onRemoveDrawingElement === next.onRemoveDrawingElement &&
+    prev.onReorderDrawing === next.onReorderDrawing &&
+    prev.onSelectImages === next.onSelectImages &&
+    prev.onAddImage === next.onAddImage &&
+    prev.onUpdateImage === next.onUpdateImage &&
+    prev.onRemoveImage === next.onRemoveImage &&
+    prev.onDuplicateImage === next.onDuplicateImage &&
+    prev.onReorderImage === next.onReorderImage &&
+    prev.isToolLocked === next.isToolLocked &&
+    prev.handDrawnStyle === next.handDrawnStyle &&
+    prev.onAutoSwitchToSelect === next.onAutoSwitchToSelect &&
+    prev.onNavigateLink === next.onNavigateLink &&
+    prev.canvasPixelScale === next.canvasPixelScale
+  )
+}
+
+function NotebookPageInner({
   page,
   activeTool,
   strokeColor,
@@ -487,3 +542,6 @@ export function NotebookPage({
     </div>
   )
 }
+
+/** Memo: thao tác ở trang A không re-render trang B (so sánh tường minh ở trên). */
+export const NotebookPage = React.memo(NotebookPageInner, areNotebookPagePropsEqual)
