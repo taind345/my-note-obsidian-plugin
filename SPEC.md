@@ -181,11 +181,17 @@ pointerdown → StrokeStream.push → [mỗi frame] snapshot() → preview (draw
   chung `drawSmoothStroke` (bút/dạ quang) / rough.js cùng seed (hình) → pixels khớp
   theo kiến trúc, không cần khớp epsilon. Nguồn sự thật pixels duy nhất:
   `drawStaticElement()` (full redraw + commit tăng dần + export PDF đều qua đây).
-- **`StrokeStream`** (`features/notebook/lib/strokeStream.ts`): lọc 0.8px → RDP cửa sổ
-  40 điểm (epsilon 0.3) + **đầu đóng băng** (điểm đã chốt không bao giờ đổi →
-  preview các frame sau và commit render cùng pixels phần đầu); chỉ đuôi (chỗ bút
-  đang chạy) tính lại mỗi frame. `finish()` đẩy nốt release point qua cùng pipeline
-  rồi strip `pressure`/`time` + tròn 1dp (render chỉ cần x/y).
+- **`StrokeStream`** (`features/notebook/lib/strokeStream.ts`): lọc **nhân quả append-only**
+  (sleeve): `out` = đỉnh đã chốt, KHÔNG BAO GIỜ đổi; điểm raw mới gộp vào `run` khi mọi
+  điểm trong run còn trong epsilon 0.3 của dây (anchor→điểm mới), vượt ngưỡng thì chốt
+  điểm liền trước. Preview = `out` + đầu bút → quá khứ không bao giờ vẽ lại (hết "rung
+  đuôi" do RDP chọn lại đỉnh mỗi frame; đo: tail-shift 0.37px → 0.000px). `finish()`
+  đẩy release point, tap không di chuyển ra 2 điểm trùng = **chấm tròn** (chấm chữ i).
+- **Mẫu dày**: `pointermove` chỉ 1 lần/frame (~60Hz) dù bút/chuột 125–1000Hz →
+  dùng `getCoalescedEvents()` lấy hết mẫu (sai số hình dạng chữ nhanh ~5.4px → ~0.8px).
+- **Preview dùng CHUNG `drawStaticElement`** với nét commit/export (không còn nhánh vẽ
+  riêng cho preview) + **dirty-rect**: mỗi frame chỉ xóa/vẽ bbox của nét đang viết thay vì
+  cả canvas trang (800×1100 × backing ≤4x). Test pixel: kết quả = vẽ lại sạch, 0 px lệch.
 - **Commit tăng dần O(1)** (`commitNewElement`): vẽ thẳng 1 nét lên bitmap tĩnh
   (cùng backing preview, transform identity) + dọn preview cùng tick → không nháy;
   effect bỏ qua full redraw khi guard (id + backing + style) khớp. Undo/xóa/đổi
@@ -201,8 +207,8 @@ pointerdown → StrokeStream.push → [mỗi frame] snapshot() → preview (draw
 - **Số thật** (Note 2: 6 trang, 2028 nét, 57.865 điểm): points 6MB → ~0.6MB;
   lệch tối đa ~0.37px (đo bằng harness bundle code thật). File cũ (points thô) đọc
   bình thường; nét mới gọn từ đầu; tương thích 2 chiều (field optional).
-- **Cấm**: RDP lại points lúc commit/thay seed theo thời gian/dùng 2 routine render
-  khác nhau cho preview và finished — cả 3 đều phá đồng bộ 1:1 (đã trả giá).
+- **Cấm**: RDP lại points lúc commit/RDP lại đuôi mỗi frame (sửa lại quá khứ)/thay seed theo
+  thời gian/dùng 2 routine render khác nhau cho preview và finished — đều phá đồng bộ 1:1.
 
 ---
 

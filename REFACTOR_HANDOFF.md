@@ -55,11 +55,12 @@
 15. **`useFitScale.ts` ĐÃ XÓA** — thay bằng tính toán tường minh (history: nhiều vòng fix
     layout gây thêm lỗi; user yêu cầu rollback toàn bộ scale, hiện tại chỉ còn zoom tay).
     Đừng reintroduce auto-fit nếu chưa đọc kỹ mục 3 bên dưới.
-16. **Đồng bộ nét vẽ 1:1 (xem SPEC §9b)**: preview và commit CHUNG `StrokeStream`
-    (đầu đóng băng, RDP cửa sổ 0.3px) + CHUNG routine (`drawSmoothStroke`/rough cùng
-    seed qua `drawStaticElement`). Cấm RDP lại lúc commit, cấm đổi seed, cấm 2 routine
-    render khác nhau — phá 1:1. Commit tăng dần O(1) + guard (id/backing/style) trong
-    effect, sai guard nào là full redraw cho đúng.
+16. **Đồng bộ nét vẽ 1:1 & Checkpoint Handwriting Ổn định (Tag: `checkpoint-handwriting-stable`)**:
+    - Nguồn sự thật: `StrokeStream` nhân quả append-only (sleeve / Reumann–Witkam), đỉnh đã chốt là bất biến → 0.000px tail shift (hết rung giật).
+    - `getCoalescedEvents()`: lấy đủ mẫu khi di bút nhanh, không bị gãy góc (sai số ~0.76px).
+    - Preview + Commit chung 1 hàm `drawStaticElement` + dirty-rect bounding box (0px lệch).
+    - Chấm tap đơn vẽ `arc()` đúng màu bút.
+    - **ĐÂY LÀ ĐIỂM KHÔI PHỤC (CHECKPOINT) CHUẨN** mỗi khi tính năng handwriting gặp lỗi hoặc cần rollback/đối chiếu.
 
 ## 2. Bug đang mở (chưa fix, đừng nhận là xong)
 

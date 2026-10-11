@@ -1,96 +1,127 @@
 import type { Point } from '@/shared/types/notebook'
-import { simplifyPolyline, STROKE_SIMPLIFY_EPSILON } from './simplifyStroke'
+import { STROKE_SIMPLIFY_EPSILON } from './simplifyStroke'
 
 /**
- * Luồng điểm nét vẽ kiểu Excalidraw (`lastCommittedPoint`): đơn giản hóa ngay
- * TRONG LÚC vẽ thay vì RDP lại lúc commit.
+ * Luồng điểm nét vẽ tay — thiết kế để preview == nét đã lưu (kiểu Excalidraw:
+ * phần tử đang vẽ CHÍNH LÀ phần tử sẽ commit, chỉ append điểm, không sửa lại
+ * quá khứ).
  *
- * - `frozen`: prefix đã chốt, KHÔNG BAO GIỜ đổi → mọi frame preview + commit
- *   render cùng pixels ở phần đầu (đồng bộ 1:1 theo kiến trúc, không cần khớp epsilon).
- * - `buf`: cửa sổ raw chưa chốt (bắt đầu bằng anchor = điểm frozen cuối).
- * - Preview vẽ `snapshot()` = frozen + RDP(buf): chỉ đuôi (chỗ bút đang chạy,
- *   mắt không đối chiếu được) được tính lại mỗi frame.
- * - Commit = `finish(releasePoint)`: đẩy nốt điểm thả bút qua cùng pipeline rồi
- *   chốt — đuôi khớp tay, đầu khớp preview. File gọn như RDP batch.
+ * Trước đây: RDP chạy lại trên cửa sổ điểm mỗi frame → các đỉnh ở đuôi bị chọn
+ * lại liên tục, đường cong ở đoạn vừa viết "rung nhẹ" rồi mới đứng yên khi bị
+ * đóng băng. Giờ: lọc NHÂN QUẢ (sleeve / Reumann–Witkam):
+ *
+ * - `out`: các đỉnh ĐÃ CHỐT. Chỉ append, không bao giờ sửa/xóa → mọi frame
+ *   preview, commit, lần mở lại file đều vẽ cùng đường đó (đồng bộ tuyệt đối).
+ * - `run`: các điểm raw từ đỉnh chốt cuối tới điểm mới nhất (tip). Điểm raw mới
+ *   được gộp vào `run` miễn là mọi điểm trong `run` còn nằm trong `epsilon` của
+ *   dây (anchor → điểm mới); vượt ngưỡng thì chốt điểm liền trước làm đỉnh mới.
+ * - `snapshot()` = out + tip (đầu bút thật). Chỉ đoạn nối tip là thay đổi giữa
+ *   các frame — đúng chỗ bút đang chạy, không thể thấy được.
+ *
+ * Mỗi điểm O(|run|) với |run| ≤ MAX_RUN → không còn công việc theo độ dài nét.
  */
 export class StrokeStream {
-  private static readonly WINDOW = 40
-  private static readonly LIVE_TAIL = 12
-  private static readonly MIN_GAP = 0.8
+  /** Bỏ điểm trùng/gần trùng (sau làm tròn 0.1). Thấp vì coalesced events dày. */
+  private static readonly MIN_GAP = 0.4
+  /** Chặn đường thẳng dài vô hạn trong 1 đoạn gộp (giữ preview bám tay). */
+  private static readonly MAX_RUN = 24
 
-  private frozen: Point[] = []
-  private buf: Point[] = []
+  private out: Point[] = []
+  private run: Point[] = []
   private readonly epsilon: number
 
   constructor(epsilon: number = STROKE_SIMPLIFY_EPSILON) {
     this.epsilon = epsilon
   }
 
-  /** Đẩy 1 điểm raw. Trả về true nếu được nhận (qua lọc khoảng cách). */
-  push(p: Point): boolean {
-    const last = this.buf.length > 0 ? this.buf[this.buf.length - 1] : null
-    if (last && Math.hypot(p.x - last.x, p.y - last.y) < StrokeStream.MIN_GAP) {
-      return false
-    }
-    this.buf.push(p)
-    this.freezeWindow()
-    return true
+  private static round1(v: number): number {
+    return Math.round(v * 10) / 10
   }
 
-  /** Điểm đã nhận cuối cùng (để kẹp release teleport): buf cuối, không thì frozen cuối. */
-  lastAcceptedPoint(): Point | null {
-    if (this.buf.length > 0) return this.buf[this.buf.length - 1]
-    if (this.frozen.length > 0) return this.frozen[this.frozen.length - 1]
+  private tip(): Point | null {
+    if (this.run.length > 0) return this.run[this.run.length - 1]
+    if (this.out.length > 0) return this.out[this.out.length - 1]
     return null
   }
 
-  /**
-   * CỬA DUY NHẤT ra dữ liệu vẽ: preview, commit, test đều qua đây nên pixels
-   * khớp từng bit (đồng bộ 1:1). Làm tròn + strip {x,y} ngay tại đây để frame
-   * preview cuối và nét commit là cùng 1 mảng số — render sau này (static,
-   * mount lại, export) dùng đúng mảng này nên khớp vĩnh viễn.
-   */
-  snapshot(): Point[] {
-    const joined =
-      this.frozen.length === 0
-        ? simplifyPolyline(this.buf, this.epsilon)
-        : [...this.frozen, ...simplifyPolyline(this.buf, this.epsilon).slice(1)]
-    return joined.map((p) => ({
-      x: Math.round(p.x * 10) / 10,
-      y: Math.round(p.y * 10) / 10,
-    }))
+  /** Đẩy 1 điểm raw. Trả về true nếu được nhận (qua lọc khoảng cách). */
+  push(raw: Point): boolean {
+    // Làm tròn + strip {x,y} NGAY khi nhận: mảng preview và mảng lưu là cùng số.
+    const p: Point = { x: StrokeStream.round1(raw.x), y: StrokeStream.round1(raw.y) }
+    const last = this.tip()
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) < StrokeStream.MIN_GAP) {
+      return false
+    }
+    if (this.out.length === 0) {
+      this.out.push(p)
+      return true
+    }
+    if (this.run.length === 0) {
+      this.run.push(p)
+      return true
+    }
+
+    const anchor = this.out[this.out.length - 1]
+    if (this.run.length < StrokeStream.MAX_RUN && this.fits(anchor, p)) {
+      this.run.push(p)
+      return true
+    }
+    // Dây (anchor → p) làm lệch điểm giữa quá ngưỡng: chốt điểm liền trước p
+    this.out.push(this.run[this.run.length - 1])
+    this.run = [p]
+    return true
+  }
+
+  /** Mọi điểm đang chờ trong run còn nằm trong epsilon của dây a→b? */
+  private fits(a: Point, b: Point): boolean {
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const lenSq = dx * dx + dy * dy
+    for (const q of this.run) {
+      let d: number
+      if (lenSq === 0) {
+        d = Math.hypot(q.x - a.x, q.y - a.y)
+      } else {
+        // khoảng cách tới ĐOẠN (không phải đường thẳng): quay đầu 180° không bị
+        // gộp nhầm thành nét thẳng
+        const t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / lenSq))
+        d = Math.hypot(q.x - (a.x + t * dx), q.y - (a.y + t * dy))
+      }
+      if (d > this.epsilon) return false
+    }
+    return true
+  }
+
+  /** Điểm đã nhận cuối cùng (để kẹp release teleport). */
+  lastAcceptedPoint(): Point | null {
+    return this.tip()
   }
 
   /**
-   * Chốt nét = snapshot cuối + nốt điểm thả bút (nếu khác biệt): phần cũ khớp
-   * preview tuyệt đối, đoạn nối tới release là thông tin mới đúng ý tay
-   * (Excalidraw cũng commit tới release point). Trả về [] nếu không đủ 2 điểm.
+   * CỬA DUY NHẤT ra dữ liệu vẽ: preview, commit, test đều qua đây. Mảng trả về
+   * = các đỉnh đã chốt (bất biến) + đầu bút hiện tại.
+   */
+  snapshot(): Point[] {
+    const t = this.run.length > 0 ? this.run[this.run.length - 1] : null
+    return t ? [...this.out, t] : this.out.slice()
+  }
+
+  /**
+   * Chốt nét = snapshot cuối + điểm thả bút (nếu khác biệt). Chạm không di
+   * chuyển (chấm chữ i, dấu chấm câu...) trả về 2 điểm trùng nhau → vẽ thành
+   * chấm tròn; không có điểm nào thì [].
    */
   finish(release?: Point): Point[] {
     const pts = this.snapshot()
     if (release) {
       const last = pts.length > 0 ? pts[pts.length - 1] : null
-      const r = { x: Math.round(release.x * 10) / 10, y: Math.round(release.y * 10) / 10 }
+      const r = { x: StrokeStream.round1(release.x), y: StrokeStream.round1(release.y) }
       if (!last || Math.hypot(r.x - last.x, r.y - last.y) >= StrokeStream.MIN_GAP) {
         pts.push(r)
       }
     }
-    if (pts.length < 2) return []
+    if (pts.length === 0) return []
+    if (pts.length === 1) return [pts[0], { ...pts[0] }]
     return pts
-  }
-
-  private freezeWindow(): void {
-    while (this.buf.length > StrokeStream.WINDOW) {
-      const s = simplifyPolyline(this.buf, this.epsilon)
-      // Đóng băng mọi điểm trừ LIVE_TAIL cuối (giữ ≥1 để buf co lại được).
-      // RDP trả về subset (cùng ref) nên tìm được vị trí cắt trong buf.
-      // Bỏ s[0] khi frozen đã có anchor đó (tránh trùng), giữ khi frozen rỗng.
-      const freezeUpTo = Math.max(1, s.length - StrokeStream.LIVE_TAIL)
-      const cut = this.buf.indexOf(s[freezeUpTo])
-      if (cut < 1) break
-      const skipFirst = this.frozen.length > 0 ? 1 : 0
-      this.frozen.push(...s.slice(skipFirst, freezeUpTo + 1))
-      this.buf = this.buf.slice(cut)
-    }
   }
 }

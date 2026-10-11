@@ -122,7 +122,7 @@ node /tmp/mybook-smoke.cjs  # smoke onload/onunload với Obsidian API giả l�
 ```
 Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynote.md`.
 
-## 9. Giới hạn đã biết (2026-10)
+## 9. Lịch sử sửa lỗi & Giới hạn đã biết (2026-10)
 
 1. **Toolbar trôi khi cuộn — ĐÃ FIX (2026-10):** nguyên nhân là toolbar nằm TRONG
    khung cuộn nội bộ (`.mybook-pages-scroll`) + `sticky`, nhưng khi chuỗi
@@ -134,11 +134,26 @@ Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynot
    Khung trong cuộn được → toolbar nằm yên (flex column); Obsidian cuộn cả view
    → sticky dính theo. Nếu tái phát, kiểm tra `overflow` chain trong DevTools
    Obsidian (`Ctrl+Shift+I`) xem phần tử nào scroll thật.
-2. Backing canvas hợp nhất cho preview/static (`canvasBackingScale`: dpr×zoom,
+2. **Lỗi giật nét & lệch preview vs render chữ viết tay (Handwriting) — ĐÃ FIX (2026-10):**
+   - **Hiện tượng lỗi:**
+     - Khi viết chữ nhanh (cursive/ngoáy tay), nét ở phần preview bị rung/giật nhẹ ở đoạn đuôi vừa viết.
+     - Sau khi thả bút/chuột (commit), hình dạng nét vẽ đôi khi bị nảy hoặc lệch so với hình ảnh lúc đang preview.
+     - Viết nhanh chữ bị góc cạnh, thô ráp; nhấp bút chấm chữ "i" hay dấu chấm câu bị mất nét hoặc hóa đen.
+   - **Nguyên nhân gốc rễ:**
+     - *RDP chạy lại trên cửa sổ trượt (sliding window) mỗi frame:* Thuật toán Ramer–Douglas–Peucker (RDP) được gọi liên tục trên buffer điểm chưa chốt. Khi có điểm mới, các đỉnh tối ưu được chọn lại khiến đường cong ở đuôi nét bị biến dạng liên tục -> nét chữ vừa viết bị rung đuôi (tail-shift đo được ~0.37px) trước khi được đóng băng.
+     - *Thiếu mẫu do Chromium Pointer Event Coalescing:* Trình duyệt Chromium chỉ phát 1 sự kiện `pointermove` mỗi frame (~60Hz) dù cảm biến chuột/bút lấy mẫu ở tần số 125–1000Hz. Khi rê bút nhanh, số điểm quá thưa làm nét bị gãy khúc, góc cạnh và sai số hình học lên đến ~5.4px.
+     - *Phân kỳ render & Full-Canvas Clear:* Nhánh preview tự vẽ bằng routine riêng (`drawSmoothStroke` với param tay) thay vì dùng chung `drawStaticElement` như nét commit. Đồng thời mỗi frame đều `clearRect` toàn bộ trang (lên tới 800×1100 × backing 4x = 14M px/frame), gây quá tải GPU/CPU và sụt khung hình.
+     - *Lỗi xử lý điểm chấm đơn (tap):* `StrokeStream` bỏ qua hoặc tạo 1 điểm duy nhất; `drawSmoothStroke` khi vẽ 1 điểm lại dùng `ctx.fillStyle` mặc định (màu đen) thay vì màu nét bút (`ctx.strokeStyle`).
+   - **Giải pháp áp dụng (học từ cơ chế Excalidraw):**
+     - *StrokeStream nhân quả append-only (sleeve / Reumann–Witkam):* Các đỉnh đã chốt (`out`) là bất biến, không bao giờ tính toán lại quá khứ. Preview = `out` + đầu bút (`tip`). Tail-shift giảm từ 0.37px về **0.000px** (khớp bit-exact giữa preview và commit).
+     - *Bổ sung Coalesced Events:* Sử dụng `e.nativeEvent.getCoalescedEvents()` để thu thập toàn bộ các điểm trung gian bị gộp giữa các frame. Sai số hình học khi viết nhanh giảm từ ~5.4px xuống ~0.76px.
+     - *Thống nhất hàm vẽ & Dirty-Rect Preview:* Preview gọi thẳng `drawStaticElement` (chung logic, thuộc tính với nét commit). Mỗi frame preview chỉ tính bounding box của nét hiện tại (+ padding nét & AA) và chỉ clear/vẽ trong vùng bọc này. Test điểm ảnh so với vẽ sạch: 0 px lệch.
+     - *Hỗ trợ điểm chấm tròn:* Tap tạo cặp điểm trùng nhau; `drawSmoothStroke` vẽ chấm tròn bằng `arc()` với `fillStyle = strokeStyle` chuẩn màu nét.
+3. Backing canvas hợp nhất cho preview/static (`canvasBackingScale`: dpr×zoom,
    min 1 max 4) — zoom 2× trên hidpi vẫn nét; cap 4x để nhẹ RAM.
-3. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM.
-4. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).
-5. Mobile chưa test (đánh dấu `isDesktopOnly: false` nhưng chưa verify cảm ứng).
+4. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM.
+5. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).
+6. Mobile chưa test (đánh dấu `isDesktopOnly: false` nhưng chưa verify cảm ứng).
 
 ## 10. Gợi ý clean/refactor tiếp (cho đợt dọn code)
 

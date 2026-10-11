@@ -215,7 +215,10 @@ export function PageCanvas({
   // (không chỉ event cuối) để không cắt góc cua → hết rung nét nhanh.
   // Xả hết mỗi rAF (vẽ 1 lần) nên không tồn đọng; cap chống burst bệnh hoạn.
   const pendingMoveQueueRef = useRef<Point[]>([])
-  const MAX_QUEUE = 256
+  const MAX_QUEUE = 4096
+  // Bao điểm của nét đang vẽ (data px): preview chỉ xóa/vẽ vùng này thay vì cả
+  // canvas trang (800×1100 × backing tới 4x = 14M px/frame → rớt frame, giật)
+  const strokeBoundsRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   // Pointer đang giữ gesture vẽ/tẩy (chống ngón thứ 2/lòng bàn tay chen vào
   // giữa nét: reset stream + nhét tọa độ lạ + commit teleport → gai nhọn).
   const activePointerIdRef = useRef<number | null>(null)
@@ -681,6 +684,8 @@ export function PageCanvas({
       const stream = new StrokeStream()
       stream.push(point)
       strokeStreamRef.current = stream
+      strokeBoundsRef.current = { x0: point.x, y0: point.y, x1: point.x, y1: point.y }
+      pendingMoveQueueRef.current = []
     }
   }
 
@@ -803,7 +808,32 @@ export function PageCanvas({
     }
 
     const queue = pendingMoveQueueRef.current
-    queue.push(point)
+    if (activeTool === 'pen' || activeTool === 'highlighter') {
+      // Chromium chỉ phát 1 pointermove/frame dù bút/chuột lấy mẫu 125–1000Hz →
+      // vẽ nhanh chỉ còn ~60 mẫu/s, chữ bị góc cạnh/giật. getCoalescedEvents()
+      // trả lại toàn bộ mẫu bị gộp (kiểu app vẽ gốc), rect đo 1 lần cho cả lô.
+      const native = e.nativeEvent
+      const coalesced =
+        typeof native.getCoalescedEvents === 'function' ? native.getCoalescedEvents() : []
+      if (coalesced.length > 1) {
+        const rect = activeCanvasRef.current?.getBoundingClientRect()
+        if (rect) {
+          const scale = displayScale(rect, PAGE_WIDTH)
+          for (const ce of coalesced) {
+            queue.push({
+              x: (ce.clientX - rect.left) / scale,
+              y: (ce.clientY - rect.top) / scale,
+            })
+          }
+        } else {
+          queue.push(point)
+        }
+      } else {
+        queue.push(point)
+      }
+    } else {
+      queue.push(point)
+    }
     if (queue.length > MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE)
 
     if (rafIdRef.current === null) {
@@ -817,6 +847,52 @@ export function PageCanvas({
 
         if (!activeCanvas || batch.length === 0) return
         const currentP = batch[batch.length - 1]
+
+        if (activeTool === 'pen' || activeTool === 'highlighter') {
+          const stream = strokeStreamRef.current
+          if (!stream) return
+          // Đẩy HẾT batch (không chỉ điểm cuối): mẫu giữa frame được giữ lại
+          let b = strokeBoundsRef.current
+          for (const p of batch) {
+            stream.push(p)
+            if (!b) b = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }
+            else {
+              if (p.x < b.x0) b.x0 = p.x
+              if (p.y < b.y0) b.y0 = p.y
+              if (p.x > b.x1) b.x1 = p.x
+              if (p.y > b.y1) b.y1 = p.y
+            }
+          }
+          strokeBoundsRef.current = b
+          const previewElem: DrawingElement = {
+            id: 'preview',
+            type: activeTool,
+            points: stream.snapshot(),
+            color: strokeColor,
+            strokeWidth,
+            opacity: activeTool === 'highlighter' ? 0.35 : 1.0,
+          }
+          // Chỉ xóa vùng nét đang chiếm (bbox + lề nửa bề rộng nét + 2px AA) —
+          // phần còn lại của canvas trống sẵn. Cùng routine vẽ với nét commit.
+          const ctx = activeCanvas.getContext('2d')
+          if (!ctx) return
+          const s = activeCanvas.width / PAGE_WIDTH
+          const pad = (strokeWidth * (activeTool === 'highlighter' ? 3 : 1)) / 2 + 2
+          ctx.setTransform(1, 0, 0, 1, 0, 0)
+          if (b) {
+            const x0 = Math.max(0, Math.floor((b.x0 - pad) * s))
+            const y0 = Math.max(0, Math.floor((b.y0 - pad) * s))
+            const x1 = Math.min(activeCanvas.width, Math.ceil((b.x1 + pad) * s))
+            const y1 = Math.min(activeCanvas.height, Math.ceil((b.y1 + pad) * s))
+            ctx.clearRect(x0, y0, x1 - x0, y1 - y0)
+          } else {
+            ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height)
+          }
+          ctx.setTransform(s, 0, 0, s, 0, 0)
+          drawStaticElement(ctx, rough.canvas(activeCanvas), previewElem, handDrawnStyle)
+          return
+        }
+
         const activeCtx = setupCtx(activeCanvas)
         if (!activeCtx) return
         const rc = rough.canvas(activeCanvas)
@@ -830,30 +906,7 @@ export function PageCanvas({
           seed: activeDrawingSeedRef.current,
         }
 
-        if (activeTool === 'pen' || activeTool === 'highlighter') {
-          const stream = strokeStreamRef.current
-          if (!stream) return
-          // Đẩy HẾT batch (không chỉ điểm cuối): mẫu giữa frame được giữ lại
-          for (const p of batch) stream.push(p)
-          const previewPoints = stream.snapshot()
-          activeCtx.save()
-          if (activeTool === 'highlighter') {
-            activeCtx.strokeStyle = strokeColor
-            activeCtx.lineWidth = strokeWidth * 3
-            activeCtx.lineCap = 'round'
-            activeCtx.lineJoin = 'round'
-            activeCtx.globalAlpha = 0.35
-            drawSmoothStroke(activeCtx, previewPoints)
-          } else {
-            activeCtx.strokeStyle = strokeColor
-            activeCtx.lineWidth = strokeWidth
-            activeCtx.lineCap = 'round'
-            activeCtx.lineJoin = 'round'
-            activeCtx.globalAlpha = 1.0
-            drawSmoothStroke(activeCtx, previewPoints)
-          }
-          activeCtx.restore()
-        } else if (startPointRef.current) {
+        if (startPointRef.current) {
           const sp = startPointRef.current
 
           if (activeTool === 'line') {

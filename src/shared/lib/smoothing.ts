@@ -7,16 +7,26 @@ import type { Point } from '@/shared/types/notebook'
 export function drawSmoothStroke(ctx: CanvasRenderingContext2D, points: Point[]): void {
   if (points.length === 0) return
   if (points.length === 1) {
+    ctx.save()
+    ctx.fillStyle = ctx.strokeStyle
     ctx.beginPath()
     ctx.arc(points[0].x, points[0].y, ctx.lineWidth / 2, 0, Math.PI * 2)
     ctx.fill()
+    ctx.restore()
     return
   }
 
   if (points.length === 2) {
+    const [a, b] = points
+    if (a.x === b.x && a.y === b.y) {
+      // Chạm không di chuyển (chấm chữ i, dấu chấm): lineTo cùng điểm có thể
+      // không ra gì tùy engine → vẽ chấm tròn tường minh bằng màu nét
+      drawSmoothStroke(ctx, [a])
+      return
+    }
     ctx.beginPath()
-    ctx.moveTo(points[0].x, points[0].y)
-    ctx.lineTo(points[1].x, points[1].y)
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
     ctx.stroke()
     return
   }
