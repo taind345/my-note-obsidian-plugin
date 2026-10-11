@@ -306,6 +306,12 @@ export function PageCanvas({
 
       ctx.restore()
     }
+
+    // Xóa preview cùng frame static vẽ xong (nét commit): không nháy trắng,
+    // không giật — preview và finished nối nhau liền mạch. An toàn vì canvas
+    // active chỉ chứa nét đang vẽ dở, mà lúc đó elements không đổi nên hàm này
+    // không chạy; mọi đường commit đều đi qua đây sau khi setPages.
+    setupCtx(activeCanvasRef.current)
   }, [elements, handDrawnStyle, canvasBacking])
 
   // Vẽ lại canvas tĩnh, throttle theo frame: kéo nhóm nhiều object liên tục
@@ -852,7 +858,9 @@ export function PageCanvas({
       rafIdRef.current = null
     }
 
-    setupCtx(activeCanvasRef.current)
+    // KHÔNG xóa preview ở đây: preview giữ nguyên cho tới khi static vẽ xong
+    // (xóa trong redrawStaticCanvas cùng frame) → không nháy trắng 1 frame,
+    // không cảm giác giật khi thả bút. Các nhánh return sớm bên dưới tự xóa.
 
     const endPoint = getCanvasCoords(e)
     const sp = startPointRef.current || endPoint
@@ -860,10 +868,13 @@ export function PageCanvas({
 
     if (activeTool === 'pen' || activeTool === 'highlighter') {
       const rawPoints = currentPointsRef.current
-      if (rawPoints.length < 2) return
+      if (rawPoints.length < 2) {
+        setupCtx(activeCanvasRef.current)
+        return
+      }
 
-      // Chốt nét: gọn points (RDP <0.7px lệch tối đa, mắt không thấy khác) +
-      // bỏ pressure/time (render chỉ cần x/y) → file nhẹ ~4-5x, undo/save nhanh theo.
+      // Chốt nét: gọn points (RDP <0.3px lệch tối đa, zoom 2x cũng không thấy) +
+      // bỏ pressure/time (render chỉ cần x/y) → file nhẹ ~8x, undo/save nhanh theo.
       // Preview lúc kéo vẫn dùng points thô nên cảm giác vẽ không đổi.
       const cleanPoints: Point[] = finalizeStrokePoints(rawPoints)
 
@@ -878,7 +889,10 @@ export function PageCanvas({
       onAddElement(newElem)
     } else if (activeTool === 'line') {
       const dist = Math.hypot(endPoint.x - sp.x, endPoint.y - sp.y)
-      if (dist < 4) return
+      if (dist < 4) {
+        setupCtx(activeCanvasRef.current)
+        return
+      }
 
       const newElem: DrawingElement = {
         id: elemId,
@@ -892,7 +906,10 @@ export function PageCanvas({
       onAddElement(newElem)
     } else if (activeTool === 'arrow') {
       const dist = Math.hypot(endPoint.x - sp.x, endPoint.y - sp.y)
-      if (dist < 4) return
+      if (dist < 4) {
+        setupCtx(activeCanvasRef.current)
+        return
+      }
 
       const mid = {
         x: Math.round((sp.x + endPoint.x) / 2),
@@ -915,7 +932,10 @@ export function PageCanvas({
       const ry = Math.min(sp.y, endPoint.y)
       const rw = Math.abs(endPoint.x - sp.x)
       const rh = Math.abs(endPoint.y - sp.y)
-      if (rw < 4 && rh < 4) return
+      if (rw < 4 && rh < 4) {
+        setupCtx(activeCanvasRef.current)
+        return
+      }
 
       const newElem: DrawingElement = {
         id: elemId,
@@ -937,7 +957,10 @@ export function PageCanvas({
       const ry = Math.min(sp.y, endPoint.y)
       const rw = Math.abs(endPoint.x - sp.x)
       const rh = Math.abs(endPoint.y - sp.y)
-      if (rw < 4 && rh < 4) return
+      if (rw < 4 && rh < 4) {
+        setupCtx(activeCanvasRef.current)
+        return
+      }
 
       const newElem: DrawingElement = {
         id: elemId,

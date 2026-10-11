@@ -2,11 +2,12 @@ import type { Point } from '@/shared/types/notebook'
 
 /**
  * Ngưỡng đơn giản hóa nét vẽ (px). RDP đảm bảo đa tuyến sau khi gọn lệch
- * tối đa < epsilon so với nét gốc → mắt thường không thấy khác (màn hình
- * không vẽ được chi tiết dưới ~1px). Preview lúc đang kéo vẫn dùng points
- * thô nên cảm giác vẽ không đổi; chỉ lúc commit mới gọn.
+ * tối đa < epsilon so với nét gốc. 0.3px = dưới ngưỡng mắt thấy ngay cả khi
+ * zoom 2x (0.6px CSS), nên thả bút không còn cảm giác nét "co lại".
+ * Preview lúc đang kéo vẫn dùng points thô nên cảm giác vẽ không đổi;
+ * chỉ lúc commit mới gọn.
  */
-export const STROKE_SIMPLIFY_EPSILON = 0.7
+export const STROKE_SIMPLIFY_EPSILON = 0.3
 
 function perpendicularDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x
