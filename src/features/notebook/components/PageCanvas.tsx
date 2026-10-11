@@ -924,10 +924,19 @@ export function PageCanvas({
         return
       }
 
+      // Chốt nét: KÈM điểm thả bút (preview chỉ vẽ tới move-cuối, thiếu đoạn
+      // cuối này là nét commit ngắn hơn tay — đúng kiểu Excalidraw commit tới
+      // release point) → gọn RDP đầu + giữ đuôi thô + bỏ pressure/time.
+      // Đuôi (chỗ mắt nhìn) preview và commit là cùng 1 điểm → đồng bộ 1:1.
+      const lastRaw = rawPoints[rawPoints.length - 1]
+      const releasePoints =
+        Math.hypot(endPoint.x - lastRaw.x, endPoint.y - lastRaw.y) >= 0.8
+          ? [...rawPoints, endPoint]
+          : rawPoints
       // Chốt nét: gọn points (RDP <0.3px lệch tối đa, zoom 2x cũng không thấy) +
       // bỏ pressure/time (render chỉ cần x/y) → file nhẹ ~8x, undo/save nhanh theo.
       // Preview lúc kéo vẫn dùng points thô nên cảm giác vẽ không đổi.
-      const cleanPoints: Point[] = finalizeStrokePoints(rawPoints)
+      const cleanPoints: Point[] = finalizeStrokePoints(releasePoints)
 
       const newElem: DrawingElement = {
         id: elemId,

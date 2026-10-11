@@ -9,6 +9,15 @@ import type { Point } from '@/shared/types/notebook'
  */
 export const STROKE_SIMPLIFY_EPSILON = 0.3
 
+/**
+ * Số điểm đuôi giữ nguyên thô (không RDP). Mắt người so sánh preview/commit ở
+ * đuôi nét (đoạn vừa vẽ xong, hướng quadratic nhạy nhất) → đuôi là cùng 1 điểm
+ * thô thì render đuôi giống hệt (kiểu lastCommittedPoint của Excalidraw: đóng
+ * băng đầu, chỉ sống ở đuôi). Đầu nét RDP thoải mái vì không còn frame
+ * preview nào để so (các frame cũ đã qua, mắt không đối chiếu được).
+ */
+export const STROKE_TAIL_KEEP = 6
+
 function perpendicularDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x
   const dy = b.y - a.y
@@ -45,13 +54,15 @@ export function simplifyPolyline(points: Point[], epsilon: number): Point[] {
 const round1dp = (v: number): number => Math.round(v * 10) / 10
 
 /**
- * Chốt nét vẽ lúc thả bút: lọc điểm trùng (<0.8px, giữ logic cũ) → RDP →
- * bỏ `pressure`/`time` (render chỉ đọc x/y) + làm tròn 1dp. File gọn ~4-5x,
- * undo/autosave/parse/render nhẹ theo mà hình vẽ không đổi.
+ * Chốt nét vẽ lúc thả bút: lọc điểm trùng (<0.8px, giữ logic cũ) → RDP phần
+ * đầu + giữ nguyên đuôi thô → bỏ `pressure`/`time` (render chỉ cần x/y) +
+ * làm tròn 1dp. File gọn ~8x, undo/save nhanh theo mà đuôi nét (chỗ mắt nhìn)
+ * render giống hệt preview.
  */
 export function finalizeStrokePoints(
   rawPoints: Point[],
-  epsilon: number = STROKE_SIMPLIFY_EPSILON
+  epsilon: number = STROKE_SIMPLIFY_EPSILON,
+  tailKeep: number = STROKE_TAIL_KEEP
 ): Point[] {
   const deduped: Point[] = []
   for (const p of rawPoints) {
@@ -61,6 +72,9 @@ export function finalizeStrokePoints(
     }
   }
   if (deduped.length === 0) return []
-  const simplified = simplifyPolyline(deduped, epsilon)
+  // Ngắn thì khỏi RDP (giữ nguyên cho khớp tuyệt đối)
+  const headEnd = deduped.length - tailKeep
+  const simplified =
+    headEnd > 2 ? [...simplifyPolyline(deduped.slice(0, headEnd + 1), epsilon), ...deduped.slice(headEnd + 1)] : deduped
   return simplified.map((p) => ({ x: round1dp(p.x), y: round1dp(p.y) }))
 }
