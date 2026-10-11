@@ -211,7 +211,11 @@ export function PageCanvas({
   const strokeStreamRef = useRef<StrokeStream | null>(null)
   const startPointRef = useRef<Point | null>(null)
   const rafIdRef = useRef<number | null>(null)
-  const pendingMovePointRef = useRef<Point | null>(null)
+  // Hàng đợi điểm move trong 1 frame: viết nhanh nhiều event/frame, giữ HẾT
+  // (không chỉ event cuối) để không cắt góc cua → hết rung nét nhanh.
+  // Xả hết mỗi rAF (vẽ 1 lần) nên không tồn đọng; cap chống burst bệnh hoạn.
+  const pendingMoveQueueRef = useRef<Point[]>([])
+  const MAX_QUEUE = 256
 
   // Selection & Manipulation state
   const [, setActiveHandle] = useState<ResizeHandleType | null>(null)
@@ -783,15 +787,21 @@ export function PageCanvas({
       return
     }
 
-    pendingMovePointRef.current = point
+    const queue = pendingMoveQueueRef.current
+    queue.push(point)
+    if (queue.length > MAX_QUEUE) queue.splice(0, queue.length - MAX_QUEUE)
 
     if (rafIdRef.current === null) {
       rafIdRef.current = requestAnimationFrame(() => {
         const activeCanvas = activeCanvasRef.current
-        const currentP = pendingMovePointRef.current
+        // Xả HẾT điểm dồn trong frame (không chỉ điểm cuối): viết nhanh không
+        // rớt mẫu giữa chừng → góc cua đầy đủ, hết rung
+        const batch = pendingMoveQueueRef.current
+        pendingMoveQueueRef.current = []
         rafIdRef.current = null
 
-        if (!activeCanvas || !currentP) return
+        if (!activeCanvas || batch.length === 0) return
+        const currentP = batch[batch.length - 1]
         const activeCtx = setupCtx(activeCanvas)
         if (!activeCtx) return
         const rc = rough.canvas(activeCanvas)
@@ -808,7 +818,8 @@ export function PageCanvas({
         if (activeTool === 'pen' || activeTool === 'highlighter') {
           const stream = strokeStreamRef.current
           if (!stream) return
-          stream.push(currentP)
+          // Đẩy HẾT batch (không chỉ điểm cuối): mẫu giữa frame được giữ lại
+          for (const p of batch) stream.push(p)
           const previewPoints = stream.snapshot()
           activeCtx.save()
           if (activeTool === 'highlighter') {
