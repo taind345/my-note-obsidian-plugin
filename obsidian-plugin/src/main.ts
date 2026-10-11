@@ -303,10 +303,12 @@ export default class MyBookPlugin extends Plugin {
       const active = this.app.workspace.activeLeaf
       const keep = active && notebookLeaves.includes(active) ? active : notebookLeaves[0]
       if (!keep) return true
-      // Giấu NGAY tab markdown thừa (tick đầu, chưa cần ổn định): display:none
-      // thì browser không paint → hết chớp + hết tốn render JSON nặng. Giấu không
-      // đụng cấu trúc leaf nên vô hại giữa lúc mở dở; dọn/focus vẫn đợi ổn định.
-      for (const l of mdLeaves) {
+      // Giấu NGAY mọi tab thừa (tick đầu, chưa cần ổn định): display:none
+      // thì browser không paint → hết chớp + hết tốn render. Giấu cả tab vở
+      // thừa (direct routing đẻ ra) chứ không riêng markdown. Giấu không đụng
+      // cấu trúc leaf nên vô hại giữa lúc mở dở; dọn/focus vẫn đợi ổn định.
+      // Hết vòng mà chưa detach (timeout) thì hiện lại hết — không kẹt tab ẩn.
+      for (const l of [...notebookLeaves, ...mdLeaves]) {
         if (l !== keep && !hiddenByMe.includes(l)) {
           setLeafContentVisible(l, false)
           hiddenByMe.push(l)
@@ -350,12 +352,17 @@ export default class MyBookPlugin extends Plugin {
     // Đợi leaf ổn định (view+file không đổi liên tiếp) rồi mới convert —
     // convert giữa lúc mở dở sẽ bị Obsidian đè lại → trắng tab
     if (!stableHit(`md:${showing || active}`)) return false
-    // Phòng hờ leaf từng bị giấu bởi loop trước: hiện lại trước khi đổi view
-    setLeafContentVisible(leaf, true)
-    await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
-    const v = leaf.view
-    if (v instanceof MyBookView) await v.loadPath(file.path)
-    return true
+    // Hiện lại SAU khi vở render xong (không phải trước): trong lúc loadPath
+    // mà hiện thì markdown raw lóe lên — đúng cái chớp cần diệt. Load lỗi thì
+    // finally hiện lại để không kẹt tab ẩn.
+    try {
+      await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
+      const v = leaf.view
+      if (v instanceof MyBookView) await v.loadPath(file.path)
+      return true
+    } finally {
+      setLeafContentVisible(leaf, true)
+    }
   }
 
   async openInMyBook(file: TFile): Promise<void> {
