@@ -7,10 +7,12 @@ interface WidthPickerProps {
   compact?: boolean
   /** Ghi đè dải widths (plugin dùng nấc riêng) — mặc định STROKE_WIDTHS. */
   widths?: WidthDef[]
+  /** Màu nét đang chọn để hiển thị chấm cùng màu với bút */
+  strokeColor?: string
 }
 
 /** Chọn độ dày nét 5–6 nấc — dùng chung app + plugin. */
-export function WidthPicker({ value, onChange, compact = false, widths = STROKE_WIDTHS }: WidthPickerProps) {
+export function WidthPicker({ value, onChange, compact = false, widths = STROKE_WIDTHS, strokeColor }: WidthPickerProps) {
   return (
     <div className="stroke-level-selector" title="Stroke Width">
       {widths.map((sw) => (
@@ -26,6 +28,7 @@ export function WidthPicker({ value, onChange, compact = false, widths = STROKE_
             style={{
               width: `${Math.min(10, Math.max(3, sw.value))}px`,
               height: `${Math.min(10, Math.max(3, sw.value))}px`,
+              backgroundColor: strokeColor || undefined,
             }}
           />
           {!compact && <span className="level-num">{sw.label}</span>}

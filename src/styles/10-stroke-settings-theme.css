@@ -27,18 +27,25 @@
 }
 
 .stroke-level-btn:hover {
-  background: #e2e8f0;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .stroke-level-btn.active {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: #eff6ff !important;
+  border: 1.5px solid #3b82f6 !important;
+  box-shadow: 0 0 0 1px #3b82f6 inset, 0 1px 2px rgba(37, 99, 235, 0.15) !important;
 }
 
 .stroke-level-btn .level-dot {
   background: #1e293b;
   border-radius: 50%;
   display: inline-block;
+  transition: transform 0.12s ease;
+}
+
+.stroke-level-btn.active .level-dot {
+  transform: scale(1.15);
 }
 
 .stroke-level-btn .level-num {

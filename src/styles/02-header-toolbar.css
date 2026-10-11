@@ -264,18 +264,25 @@
 }
 
 .color-swatches.mini .color-dot {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
   cursor: pointer;
   padding: 0;
-  transition: transform 0.1s ease;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.color-swatches.mini .color-dot:hover {
+  transform: scale(1.15);
 }
 
 .color-swatches.mini .color-dot.selected {
-  border-color: #0f172a;
-  transform: scale(1.2);
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  z-index: 2;
 }
 
 .compact-select {
