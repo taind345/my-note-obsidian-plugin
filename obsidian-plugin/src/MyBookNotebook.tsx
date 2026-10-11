@@ -7,9 +7,9 @@ import type {
   DrawingElement,
   TextBoxData,
   PageImageData,
-} from '../../src/types/notebook'
-import { NotebookPage } from '../../src/components/NotebookPage'
-import { debounce } from '../../src/utils/debounce'
+} from '@/shared/types/notebook'
+import { NotebookPage } from '@/features/notebook/components/NotebookPage'
+import { debounce } from '@/shared/lib/debounce'
 import { MiniToolbar } from './MiniToolbar'
 
 /** Đo rộng khung cuộn chứa nó (mount cùng scroll, luôn tươi) */

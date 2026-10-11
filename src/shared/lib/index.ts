@@ -1,0 +1,10 @@
+/** Lib dùng chung: pure helpers, không import components/services. */
+export { debounce } from './debounce'
+export { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from './lineSnap'
+export { FONT_OPTIONS, FONT_STACKS, fontStack, loadFont, saveFont, type FontKind } from './fonts'
+export { isTauri, setVaultFileIndex, resolveVaultAsset, tauriAssetUrl } from './tauriFs'
+export { renderMarkdown, setAssetResolver, type MarkdownRenderOptions } from './markdown'
+export { htmlToMarkdown } from './htmlToMarkdown'
+export * from './selection'
+export * from './smoothing'
+export * from './imagePaste'

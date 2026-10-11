@@ -1,4 +1,4 @@
-import type { NotebookMetadata, PageData } from '../types/notebook'
+import type { NotebookMetadata, PageData } from '@/shared/types/notebook'
 
 /**
  * Format notebook data into an Obsidian-compatible Excalidraw Markdown file (.excalidraw.md)

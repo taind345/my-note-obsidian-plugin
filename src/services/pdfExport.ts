@@ -1,4 +1,4 @@
-import type { ExportResolution, PageData } from '../types/notebook'
+import type { ExportResolution, PageData } from '@/shared/types/notebook'
 
 export interface PdfExportProgress {
   current: number

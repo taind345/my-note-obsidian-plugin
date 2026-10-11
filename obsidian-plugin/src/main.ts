@@ -5,12 +5,12 @@ import { createRoot, type Root } from 'react-dom/client'
 // (prepare-css.mjs đã strip url tuyệt đối không resolve được trong Obsidian)
 import './app.obsidian.css'
 import 'katex/dist/katex.min.css'
-import { setAssetResolver } from '../../src/utils/markdown'
+import { setAssetResolver } from '@/shared/lib/markdown'
 import {
   exportNotebookToMarkdown,
   importNotebookFromMarkdown,
-} from '../../src/services/markdownFile'
-import { getEmptyNotebook } from '../../src/services/storage'
+} from '@/services/markdownFile'
+import { getEmptyNotebook } from '@/services/storage'
 import { MyBookNotebook, MyBookErrorBoundary } from './MyBookNotebook'
 
 export const MYBOOK_VIEW_TYPE = 'mybook-notebook'

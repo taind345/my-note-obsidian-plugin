@@ -32,7 +32,9 @@ const ctx = await esbuild.context({
   jsx: 'automatic',
   logLevel: 'info',
   // Một bản React duy nhất (lấy từ root) — 2 bản React sẽ vỡ hooks
+  // + alias `@` → `src/` (dùng chung code app: types, lib, features)
   alias: {
+    '@': path.join(root, 'src'),
     react: path.join(root, 'node_modules', 'react'),
     'react-dom': path.join(root, 'node_modules', 'react-dom'),
   },

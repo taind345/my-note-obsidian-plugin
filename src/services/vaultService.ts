@@ -1,5 +1,5 @@
-import type { VaultFileItem, EditorMode } from '../types/notebook'
-import { isTauri } from '../utils/tauriFs'
+import type { VaultFileItem, EditorMode } from '@/shared/types/notebook'
+import { isTauri } from '@/shared/lib/tauriFs'
 
 export const DEFAULT_VAULT_PATH = '/home/ti/Desktop/DATA_DESKTOP/0_Obsidian notebook/red'
 

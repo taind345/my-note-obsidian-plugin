@@ -3,7 +3,7 @@ import {
   Square, Circle, Type, Lock, Unlock, Plus, ZoomIn, ZoomOut, RotateCcw, RotateCw,
   Maximize,
 } from 'lucide-react'
-import type { ToolType } from '../../src/types/notebook'
+import type { ToolType } from '@/shared/types/notebook'
 
 interface MiniToolbarProps {
   activeTool: ToolType

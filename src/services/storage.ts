@@ -1,5 +1,5 @@
 import { get, set, del } from 'idb-keyval'
-import type { NotebookMetadata, PageData, TextBoxData, PaperPattern } from '../types/notebook'
+import type { NotebookMetadata, PageData, TextBoxData, PaperPattern } from '@/shared/types/notebook'
 
 const META_KEY = 'notebook_meta_v4'
 const PAGE_KEY_PREFIX = 'notebook_page_v4_'
