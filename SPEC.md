@@ -167,6 +167,39 @@ kèm menu **Save as PDF** (in qua iframe ẩn).
   (chuẩn hóa zoom), mặc định nằm đáy layer, resize giữ tỉ lệ, khung card tùy chọn.
 - Context menu dùng portal ra `body` (tránh lệch tọa độ do `transform` của trang giấy).
 
+### 9b. Pipeline nét vẽ tay (đồng bộ 1:1 kiểu Excalidraw, file gọn)
+
+```
+pointerdown → StrokeStream.push → [mỗi frame] snapshot() → preview (drawSmoothStroke)
+                                                                    ↓ pointerup
+                                   finish(releasePoint) → commit → static (drawStaticElement)
+                                                                       ↓ undo/xóa/zoom/mount
+                                                              full redraw (cùng routine)
+```
+
+- **Một dữ liệu, một routine**: preview và commit dùng chung points trong stream +
+  chung `drawSmoothStroke` (bút/dạ quang) / rough.js cùng seed (hình) → pixels khớp
+  theo kiến trúc, không cần khớp epsilon. Nguồn sự thật pixels duy nhất:
+  `drawStaticElement()` (full redraw + commit tăng dần + export PDF đều qua đây).
+- **`StrokeStream`** (`features/notebook/lib/strokeStream.ts`): lọc 0.8px → RDP cửa sổ
+  40 điểm (epsilon 0.3) + **đầu đóng băng** (điểm đã chốt không bao giờ đổi →
+  preview các frame sau và commit render cùng pixels phần đầu); chỉ đuôi (chỗ bút
+  đang chạy) tính lại mỗi frame. `finish()` đẩy nốt release point qua cùng pipeline
+  rồi strip `pressure`/`time` + tròn 1dp (render chỉ cần x/y).
+- **Commit tăng dần O(1)** (`commitNewElement`): vẽ thẳng 1 nét lên bitmap tĩnh
+  (cùng backing preview, transform identity) + dọn preview cùng tick → không nháy;
+  effect bỏ qua full redraw khi guard (id + backing + style) khớp. Undo/xóa/đổi
+  zoom/style → full redraw cho đúng.
+- **Backing hợp nhất** (`canvasBackingScale`: dpr×zoom, min 1 max 4x): 2 canvas cùng
+  độ phân giải → preview/finished pixel-identical, zoom 2x hidpi vẫn nét.
+- **Seed ổn định** (`getElementSeed` theo id + `activeDrawingSeedRef` lúc vẽ → gán
+  vào element lúc commit): rough.js ra cùng hình ở preview/static/export/PDF.
+- **Số thật** (Note 2: 6 trang, 2028 nét, 57.865 điểm): points 6MB → ~0.6MB;
+  lệch tối đa ~0.37px (đo bằng harness bundle code thật). File cũ (points thô) đọc
+  bình thường; nét mới gọn từ đầu; tương thích 2 chiều (field optional).
+- **Cấm**: RDP lại points lúc commit/thay seed theo thời gian/dùng 2 routine render
+  khác nhau cho preview và finished — cả 3 đều phá đồng bộ 1:1 (đã trả giá).
+
 ---
 
 ## 10. Vault & Tab & Split

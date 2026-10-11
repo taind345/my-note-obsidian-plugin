@@ -55,6 +55,11 @@
 15. **`useFitScale.ts` ĐÃ XÓA** — thay bằng tính toán tường minh (history: nhiều vòng fix
     layout gây thêm lỗi; user yêu cầu rollback toàn bộ scale, hiện tại chỉ còn zoom tay).
     Đừng reintroduce auto-fit nếu chưa đọc kỹ mục 3 bên dưới.
+16. **Đồng bộ nét vẽ 1:1 (xem SPEC §9b)**: preview và commit CHUNG `StrokeStream`
+    (đầu đóng băng, RDP cửa sổ 0.3px) + CHUNG routine (`drawSmoothStroke`/rough cùng
+    seed qua `drawStaticElement`). Cấm RDP lại lúc commit, cấm đổi seed, cấm 2 routine
+    render khác nhau — phá 1:1. Commit tăng dần O(1) + guard (id/backing/style) trong
+    effect, sai guard nào là full redraw cho đúng.
 
 ## 2. Bug đang mở (chưa fix, đừng nhận là xong)
 
