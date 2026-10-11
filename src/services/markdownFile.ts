@@ -63,11 +63,15 @@ export function exportNotebookToMarkdown(
     })),
   }
 
+  // Serialize COMPACT (không indent): JSON scene của vở nhiều MB, whitespace
+  // thụt dòng tốn ~50% dung lượng file mà không ai đọc (phần đọc được cho người
+  // nằm ở text mirror phía trên). Kiểu Excalidraw cũng serialize compact.
+  // Reader (JSON.parse) không phân biệt indent — tương thích 2 chiều tuyệt đối.
   const jsonBlock = [
     '',
     '%% # Digital Notebook Excalidraw Data',
     '```json',
-    JSON.stringify(embeddedData, null, 2),
+    JSON.stringify(embeddedData),
     '```',
     '%%',
   ].join('\n')
