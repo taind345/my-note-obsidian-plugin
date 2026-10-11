@@ -106,6 +106,19 @@ export default class MyBookPlugin extends Plugin {
         const start = performance.now()
         const st = { key: '', stable: 0 }
         const hiddenByMe: WorkspaceLeaf[] = []
+        // Giấu ĐỒNG BỘ ngay trong event (trước paint frame đầu): tab markdown
+        // thừa đã attach kịp thì nó không bao giờ được vẽ — hết lóe 1 frame.
+        // Chưa attach thì rAF poll phía dưới lo tiếp.
+        try {
+          if (findMyBookLeaves(this.app, file.path).length > 0) {
+            for (const l of findMarkdownLeavesShowing(this.app, file.path)) {
+              setLeafContentVisible(l, false)
+              if (!hiddenByMe.includes(l)) hiddenByMe.push(l)
+            }
+          }
+        } catch {
+          /* bỏ qua, poll lo tiếp */
+        }
         const tick = () => {
           void (async () => {
             try {
@@ -302,18 +315,19 @@ export default class MyBookPlugin extends Plugin {
       // Đợi tập leaf ổn định rồi mới đụng (tránh đè lúc Obsidian mở dở)
       const nbKey = `nb:${notebookLeaves.length}|md:${mdLeaves.length}`
       if (!stableHit(nbKey)) return false
-      for (const l of notebookLeaves) {
-        if (l !== keep) l.detach()
-      }
       // Đã mở rồi thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) — KHÔNG
       // convert/load lại: click sidebar không bao giờ reload file. Tab markdown
       // thừa (vừa mở ra, chưa có state người dùng) dọn luôn.
-      for (const l of mdLeaves) {
-        if (l !== keep) l.detach()
-      }
-      // Focus thừa (đã đúng leaf) sẽ bắn file-open lặp → lag nền
+      // Thứ tự: focus TRƯỚC, detach SAU — detach tab không-active thì êm,
+      // không kéo focus nhảy 2 lần trong 1 nhịp.
       if (keep !== this.app.workspace.activeLeaf) {
         this.app.workspace.setActiveLeaf(keep, { focus: true })
+      }
+      for (const l of notebookLeaves) {
+        if (l !== keep) l.detach()
+      }
+      for (const l of mdLeaves) {
+        if (l !== keep) l.detach()
       }
       return true
     }
