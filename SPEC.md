@@ -206,10 +206,11 @@ Toàn bộ nhóm chính tùy biến được trong Settings (lưu localStorage).
 ## 13. Hiệu năng (đã áp dụng + đã dọn)
 
 - Không canvas vô hạn: trang cố định, unmount khi lật trang; undo cap 50/100.
-- Nét vẽ gọn lúc commit (`finalizeStrokePoints`: RDP epsilon 0.3px + bỏ
-  pressure/time + tròn 1dp — render chỉ cần x/y): Note 2 thật 6MB points → 0.72MB
-  (~×8), lệch tối đa 0.3px (zoom 2x không thấy). Preview giữ tới khi static vẽ
-  xong cùng frame (không nháy trắng). Reader giữ nguyên (tương thích 2 chiều).
+- Nét vẽ gọn + đồng bộ 1:1 kiểu Excalidraw (`StrokeStream`: simplify ngay trong
+  lúc vẽ, đầu đóng băng — preview và commit cùng 1 dữ liệu + cùng routine nên
+  pixels khớp; release point đi qua cùng pipeline; bỏ pressure/time + tròn 1dp):
+  Note 2 thật 6MB points → ~0.6MB. Preview giữ tới khi static vẽ xong cùng
+  frame (không nháy trắng). Reader giữ nguyên (tương thích 2 chiều).
 - Debounce mọi đường gõ: markdown 120ms, autosave 1.2–2s, convert 600ms, undo-commit 800ms.
 - Cache HTML theo dòng (Live), `React.memo` textbox/selection, `useMemo` flatten vault.
 - Canvas tĩnh redraw tối đa 1 lần/frame; preview vẽ rough.js tách khỏi preview nét đang vẽ.

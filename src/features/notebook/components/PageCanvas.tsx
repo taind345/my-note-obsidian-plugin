@@ -6,7 +6,7 @@ import { drawSmoothStroke } from '@/shared/lib/smoothing'
 import { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from '@/shared/lib/lineSnap'
 import { canvasBackingScale } from '../lib/canvasResolution'
 import { getElementSeed } from '../lib/elementSeed'
-import { finalizeStrokePoints } from '../lib/simplifyStroke'
+import { StrokeStream } from '../lib/strokeStream'
 import { normalizeRect, isClickRect, marqueeSelect, toggleInList, rectsIntersect } from '@/shared/lib/selection'
 import { Trash2, Copy, Lock, Unlock, ArrowUp, ArrowDown, Frame } from 'lucide-react'
 
@@ -206,7 +206,9 @@ export function PageCanvas({
   // Drawing state
   const isDrawingRef = useRef(false)
   const activeDrawingSeedRef = useRef<number>(1)
-  const currentPointsRef = useRef<Point[]>([])
+  // Stream nét đang vẽ (simplify ngay trong lúc vẽ, đầu đóng băng —
+  // preview và commit cùng 1 dữ liệu nên đồng bộ 1:1 kiểu Excalidraw)
+  const strokeStreamRef = useRef<StrokeStream | null>(null)
   const startPointRef = useRef<Point | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const pendingMovePointRef = useRef<Point | null>(null)
@@ -626,7 +628,9 @@ export function PageCanvas({
     startPointRef.current = point
 
     if (activeTool === 'pen' || activeTool === 'highlighter') {
-      currentPointsRef.current = [point]
+      const stream = new StrokeStream()
+      stream.push(point)
+      strokeStreamRef.current = stream
     }
   }
 
@@ -766,7 +770,10 @@ export function PageCanvas({
         }
 
         if (activeTool === 'pen' || activeTool === 'highlighter') {
-          currentPointsRef.current.push(currentP)
+          const stream = strokeStreamRef.current
+          if (!stream) return
+          stream.push(currentP)
+          const previewPoints = stream.snapshot()
           activeCtx.save()
           if (activeTool === 'highlighter') {
             activeCtx.strokeStyle = strokeColor
@@ -774,14 +781,14 @@ export function PageCanvas({
             activeCtx.lineCap = 'round'
             activeCtx.lineJoin = 'round'
             activeCtx.globalAlpha = 0.35
-            drawSmoothStroke(activeCtx, currentPointsRef.current)
+            drawSmoothStroke(activeCtx, previewPoints)
           } else {
             activeCtx.strokeStyle = strokeColor
             activeCtx.lineWidth = strokeWidth
             activeCtx.lineCap = 'round'
             activeCtx.lineJoin = 'round'
             activeCtx.globalAlpha = 1.0
-            drawSmoothStroke(activeCtx, currentPointsRef.current)
+            drawSmoothStroke(activeCtx, previewPoints)
           }
           activeCtx.restore()
         } else if (startPointRef.current) {
@@ -918,25 +925,13 @@ export function PageCanvas({
     const elemId = `elem_${pageId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
 
     if (activeTool === 'pen' || activeTool === 'highlighter') {
-      const rawPoints = currentPointsRef.current
-      if (rawPoints.length < 2) {
+      // Commit = finish stream: release point đi qua cùng pipeline (đầu đóng
+      // băng khớp preview tuyệt đối, đuôi khớp tay) → gọn + bỏ pressure/time.
+      const cleanPoints: Point[] = strokeStreamRef.current?.finish(endPoint) ?? []
+      if (cleanPoints.length < 2) {
         setupCtx(activeCanvasRef.current)
         return
       }
-
-      // Chốt nét: KÈM điểm thả bút (preview chỉ vẽ tới move-cuối, thiếu đoạn
-      // cuối này là nét commit ngắn hơn tay — đúng kiểu Excalidraw commit tới
-      // release point) → gọn RDP đầu + giữ đuôi thô + bỏ pressure/time.
-      // Đuôi (chỗ mắt nhìn) preview và commit là cùng 1 điểm → đồng bộ 1:1.
-      const lastRaw = rawPoints[rawPoints.length - 1]
-      const releasePoints =
-        Math.hypot(endPoint.x - lastRaw.x, endPoint.y - lastRaw.y) >= 0.8
-          ? [...rawPoints, endPoint]
-          : rawPoints
-      // Chốt nét: gọn points (RDP <0.3px lệch tối đa, zoom 2x cũng không thấy) +
-      // bỏ pressure/time (render chỉ cần x/y) → file nhẹ ~8x, undo/save nhanh theo.
-      // Preview lúc kéo vẫn dùng points thô nên cảm giác vẽ không đổi.
-      const cleanPoints: Point[] = finalizeStrokePoints(releasePoints)
 
       const newElem: DrawingElement = {
         id: elemId,
@@ -1039,7 +1034,7 @@ export function PageCanvas({
       commitNewElement(newElem)
     }
 
-    currentPointsRef.current = []
+    strokeStreamRef.current = null
     startPointRef.current = null
 
     // Auto-switch to select ONLY for shape tools (rect, circle, arrow, line) when tool lock is false!
