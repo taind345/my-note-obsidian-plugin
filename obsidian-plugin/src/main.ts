@@ -87,18 +87,19 @@ export default class MyBookPlugin extends Plugin {
     // cuối), nên khi file vở bị mở bằng view markdown thì tự chuyển sang view vở.
     // Bất biến 1 file = 1 leaf vở (xem findMyBookLeaves): file đã có leaf vở thì
     // focus về đó + dọn tab thừa, không bao giờ đẻ tab mới.
-    // MƯỢT (không chớp tab): poll mỗi frame thay vì setTimeout 80ms cố định —
-    // xử lý ngay frame Obsidian gắn view xong, TRƯỚC khi browser paint, nên tab
-    // thừa bị dọn/convert khi chưa kịp vẽ. Timeout 500ms thì bỏ qua.
+    // MƯỢT (không chớp tab): poll mỗi frame — xử lý ngay khi trạng thái leaf
+    // ỔN ĐỊNH (không đổi liên tiếp 3 frame), vẫn trước khi paint xong nên tab
+    // thừa bị dọn/convert gọn. Timeout 2000ms cho file to attach chậm thì bỏ qua.
     this.registerEvent(
       this.app.workspace.on('file-open', (file) => {
         if (!file || !isMyBookNote(this.app, file)) return
         const start = performance.now()
+        const st = { key: '', stable: 0 }
         const tick = () => {
           void (async () => {
             try {
-              const settled = await this.settleFileOpen(file)
-              if (!settled && performance.now() - start < 500) {
+              const settled = await this.settleFileOpen(file, st)
+              if (!settled && performance.now() - start < 2000) {
                 requestAnimationFrame(tick)
               }
             } catch (err) {
@@ -244,10 +245,27 @@ export default class MyBookPlugin extends Plugin {
 
   /**
    * Xử lý 1 tick mở file. true = đã yên (convert/focus/dọn xong, hoặc chắc chắn
-   * không có gì để làm); false = Obsidian chưa gắn view xong → poll frame sau.
-   * Tick nào cũng rẻ (quét vài chục leaf) và no-op khi đã ổn.
+   * không có gì để làm); false → poll tiếp. Tick nào cũng rẻ và no-op khi ổn.
+   *
+   * Hành động cấu trúc (convert/detach) chỉ chạy khi trạng thái leaf ỔN ĐỊNH
+   * liên tiếp 3 frame: làm giữa lúc Obsidian đang mở dở (re-entrancy) sẽ bị nó
+   * đè lại → tab trắng/tab kẹt. Ổn định rồi mới làm.
    */
-  async settleFileOpen(file: TFile): Promise<boolean> {
+  async settleFileOpen(
+    file: TFile,
+    st: { key: string; stable: number }
+  ): Promise<boolean> {
+    const STABLE_FRAMES = 3
+    const stableHit = (key: string): boolean => {
+      if (st.key === key) {
+        st.stable += 1
+      } else {
+        st.key = key
+        st.stable = 1
+      }
+      return st.stable >= STABLE_FRAMES
+    }
+
     const notebookLeaves = findMyBookLeaves(this.app, file.path)
     const mdLeaves = findMarkdownLeavesShowing(this.app, file.path)
 
@@ -256,6 +274,9 @@ export default class MyBookPlugin extends Plugin {
       const active = this.app.workspace.activeLeaf
       const keep = active && notebookLeaves.includes(active) ? active : notebookLeaves[0]
       if (!keep) return true
+      // Đợi tập leaf ổn định rồi mới đụng (tránh đè lúc Obsidian mở dở)
+      const nbKey = `nb:${notebookLeaves.length}|md:${mdLeaves.length}`
+      if (!stableHit(nbKey)) return false
       for (const l of notebookLeaves) {
         if (l !== keep) l.detach()
       }
@@ -297,8 +318,11 @@ export default class MyBookPlugin extends Plugin {
     } | null
     if (!view || view.getViewType?.() !== 'markdown') return false
     const showing = view.file?.path
-    const activePath = this.app.workspace.getActiveFile()?.path
-    if (showing !== file.path && activePath !== file.path) return false
+    const active = this.app.workspace.getActiveFile()?.path
+    if (showing !== file.path && active !== file.path) return false
+    // Đợi leaf ổn định (view+file không đổi liên tiếp) rồi mới convert —
+    // convert giữa lúc mở dở sẽ bị Obsidian đè lại → trắng tab
+    if (!stableHit(`md:${showing || active}`)) return false
     await leaf.setViewState({ type: MYBOOK_VIEW_TYPE, active: true, state: { file: file.path } })
     const v = leaf.view
     if (v instanceof MyBookView) await v.loadPath(file.path)
