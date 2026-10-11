@@ -57,7 +57,10 @@ nhờ alias), lucide, markdown-it, katex, roughjs, idb-keyval. External: `obsidi
 click .mynote.md
   → Obsidian mở markdown view (đuôi sau chấm cuối là .md, registerExtensions không khớp)
   → event file-open → đợi 80ms cho view gán file xong
-  → nếu đúng file + view markdown → setViewState MYBOOK + loadPath trực tiếp
+  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì focus về đó + dọn tab thừa
+    (đổi tab markdown thừa thành vở tại chỗ rồi dọn leaf cũ, chỉ khi convert thành công);
+    chưa có thì đổi leaf markdown đang hiển thị đúng file sang view vở (tìm leaf
+    theo file đang hiển thị, không đoán bằng getMostRecentLeaf)
   → parse JSON nhúng → createRoot → render (bọc ErrorBoundary hiện lỗi ra view)
 Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo dõi rename/delete)
 Đóng: unmount root, clear path. setAssetResolver(null) khi unload plugin.

@@ -47,6 +47,11 @@
 13. **Paste ảnh chống double** (`handledPasteAtRef` giữa onPaste React + window listener).
 14. **Không `setState` trong render; không hook trong hàm render có điều kiện**
     (`renderMynoteWorkspace`); multi-select dùng mảng, phần tử [0] là primary.
+15. **1 file `.mynote.md` = 1 leaf vở trong Obsidian** (`findMyBookLeaves` /
+    `findMarkdownLeavesShowing` trong `obsidian-plugin/src/main.ts`): sidebar click,
+    menu, command đều focus về leaf cũ + dọn tab thừa, không đẻ tab mới. Tìm leaf
+    theo file đang hiển thị, KHÔNG đoán bằng `getMostRecentLeaf` (sidebar focus làm
+    lệch active leaf → convert nhầm). Chỉ dọn leaf cũ khi convert thành công.
 15. **`useFitScale.ts` ĐÃ XÓA** — thay bằng tính toán tường minh (history: nhiều vòng fix
     layout gây thêm lỗi; user yêu cầu rollback toàn bộ scale, hiện tại chỉ còn zoom tay).
     Đừng reintroduce auto-fit nếu chưa đọc kỹ mục 3 bên dưới.
