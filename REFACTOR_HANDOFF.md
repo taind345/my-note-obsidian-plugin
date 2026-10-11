@@ -79,6 +79,8 @@
   (có ảnh paste + canvas backing theo resolution + rough giống màn hình);
   `ExportPdfModal` thêm props `portalTarget`/`mountRoot`/`onSavePdf`/`filename`.
 - Backing canvas hợp nhất preview/static (`canvasBackingScale`, max 4x).
+- Serializer JSON compact (bỏ indent): file nhẹ ~48%, tương thích 2 chiều.
+- Mở file plugin: focus-only (Excalidraw focusOnFileTab) + giấu tab thừa pre-paint + settle ổn định 3 frame; tên mới `note_N.mynote.md`, tên hiển thị `my note` (id/view-type/CSS giữ nguyên).
 
 CÒN LẠI:
 1. Chẻ `obsidian-plugin/src/MyBookNotebook.tsx` (~520 dòng) → `useNotebookHistory` ver

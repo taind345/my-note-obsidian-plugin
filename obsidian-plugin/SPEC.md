@@ -39,7 +39,7 @@ scope-css.mjs          # prefix mọi selector vào .mybook-obsidian-host -> sty
 install-to-vault.mjs   # copy main.js/manifest.json/styles.css vào vault red
 src/main.ts            # Plugin: view, lệnh, routing file, asset resolver (~390 dòng)
 src/MyBookNotebook.tsx # state vở + history + toolbar + render pages (~500 dòng)
-src/MiniToolbar.tsx    # tool vẽ + màu + nét + undo + zoom/fit + thêm trang (~120 dòng)
+src/MiniToolbar.tsx    # tool vẽ + màu + nét + undo + zoom/fit + thêm trang + xuất PDF
 src/obsidian-overrides.css  # layout view + sticky toolbar + ẩn decor cần asset ngoài
 src/excalidraw-stub.ts # thay engine Excalidraw (không ship 1MB+)
 src/css.d.ts           # declare module '*.css' cho tsc
@@ -55,19 +55,18 @@ nhờ alias), lucide, markdown-it, katex, roughjs, idb-keyval. External: `obsidi
 
 ```
 click .mynote.md
-  → Obsidian mở markdown view (đuôi sau chấm cuối là .md, registerExtensions không khớp)
-  → event file-open → đợi 80ms cho view gán file xong
-  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) + dọn tab markdown thừa, KHÔNG convert/load lại — click sidebar không bao giờ reload file
-    (đổi tab markdown thừa thành vở tại chỗ rồi dọn leaf cũ, chỉ khi convert thành công);
-    chưa có thì đổi leaf markdown đang hiển thị đúng file sang view vở (tìm leaf
-    theo file đang hiển thị, không đoán bằng getMostRecentLeaf)
+  → Obsidian mở markdown view (đuôi sau chấm cuối là .md; đã đăng ký thêm đuôi "mynote" theo Excalidraw nhưng core vẫn ưu tiên markdown)
+  → event file-open → GIẤU đồng bộ tab thừa ngay trong event (display:none, trước paint) + poll mỗi frame
+  → BẤT BIẾN 1 file = 1 leaf vở: đã có leaf vở thì CHỈ focus về (kiểu Excalidraw focusOnFileTab) + detach tab thừa, KHÔNG convert/load lại — click sidebar không bao giờ reload file;
+    chưa có thì đợi leaf ỔN ĐỊNH 3 frame rồi mới đổi leaf markdown đang hiển thị đúng file sang view vở (tìm theo file, không đoán bằng getMostRecentLeaf; hiện lại sau loadPath, timeout hiện lại hết để không kẹt tab ẩn)
+  → parse JSON nhúng → createRoot → render (bọc ErrorBoundary hiện lỗi ra view; bitmap tĩnh defer paint khi ngoài viewport)
   → parse JSON nhúng → createRoot → render (bọc ErrorBoundary hiện lỗi ra view)
 Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo dõi rename/delete)
 Đóng: unmount root, clear path. setAssetResolver(null) khi unload plugin.
 ```
 
 - `MyBookView.getState()/setState()` giữ `{file}` để Obsidian lưu/khôi phục layout.
-- Tạo vở mới: thử `vault.create` thật, trùng tên thì tăng số (tối đa 100), tạo trong
+- Tạo vở mới (`note_1.mynote.md`, trùng thì `note_2...`, lấp số trống, tối đa 100 lần thử): thử `vault.create` thật, tạo trong
   thư mục file đang mở → thư mục vở mở gần nhất → vault root.
 - `openInMyBook` tự lái `view.loadPath()` sau `setViewState` (không trông chờ Obsidian
   gọi `setState`), mọi lỗi hiện Notice + console.
@@ -98,7 +97,8 @@ Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo d
   (`:root` → host giữ nguyên CSS variables; bỏ rule `html,body,#root`; giữ `@keyframes`;
   strip font/doodle URL tuyệt đối).
 - `obsidian-overrides.css`: layout view (`height:100%`, flex column), scroll trang,
-  toolbar **sticky trong khung cuộn**, ẩn decor cần asset ngoài (`sheet-watermark`,
+  toolbar ĐỨNG NGOÀI khung cuộn (con trực tiếp view, `position:sticky; top:0` — chi tiết §9) + nút export PDF,
+  ẩn decor cần asset ngoài (`sheet-watermark`,
   `frame-decor img`, doodles, underline asset) — washi gradient + sparkle text vẫn hiện
   vì không cần file ảnh.
 - Font chữ trong vở: var `--font-cascadia` (scope host). Font Virgil/Patrick Hand rớt về
@@ -117,7 +117,7 @@ Lưu: debounce 1.2s → vault.modify (đọc path mới nhất lúc lưu, theo d
 ```bash
 npm run build        # prepare-css + esbuild + scope-css
 npm run typecheck    # tsc --noEmit
-node install-to-vault.mjs   # copy vào red/.obsidian/plugins/mybook-notebook/
+node install-to-vault.mjs   # copy vào red/.obsidian/plugins/mynote/
 node /tmp/mybook-smoke.cjs  # smoke onload/onunload với Obsidian API giả lập
 ```
 Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynote.md`.

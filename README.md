@@ -102,7 +102,7 @@ Muốn đổi thư mục vault mặc định: sửa `DEFAULT_VAULT_PATH` trong `
 
 ---
 
-## 🔌 Plugin Obsidian — MyBook Notebook
+## 🔌 Plugin Obsidian — my note
 
 Dùng trang vở MyBook (textbox + vẽ tay + ảnh paste + select) **ngay trong app Obsidian**
 cho file `.mynote.md`, lưu trực tiếp qua Vault API (không cần chạy app MyBook riêng).
@@ -111,10 +111,10 @@ cho file `.mynote.md`, lưu trực tiếp qua Vault API (không cần chạy app
 cd obsidian-plugin
 npm install        # lần đầu
 npm run build      # → main.js + styles.css (đã scope CSS, không rò ra UI Obsidian)
-npm run install-to-vault   # copy vào vault red/.obsidian/plugins/mybook-notebook/
+npm run install-to-vault   # copy vào vault red/.obsidian/plugins/mynote/
 ```
 
-Rồi trong Obsidian: **Settings → Community plugins → bật "MyBook Notebook" → Reload**
+Rồi trong Obsidian: **Settings → Community plugins → bật "my note" → Reload**
 (`Ctrl+P` → "Reload app without saving" cho chắc). Click file `.mynote.md` bất kỳ là mở
 bằng vở. Thêm lệnh: *Tạo vở MyBook mới*, *Mở file đang xem bằng MyBook*,
 *Xuất vở đang mở ra PDF* (+ icon ribbon, nút Download trên toolbar vở — PDF lưu cạnh file vở).
