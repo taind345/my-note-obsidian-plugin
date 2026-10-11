@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ExportResolution, PageData } from '@/shared/types/notebook'
 import { Download, FileText, Loader2, X } from 'lucide-react'
-import { exportNotebookPagesToPdf, type PdfExportProgress } from '@/services/pdfExport'
-import { renderMarkdown } from '@/shared/lib/markdown'
-import { drawSmoothStroke, drawArrow } from '@/shared/lib/smoothing'
+import {
+  exportNotebookPagesToPdf,
+  renderNotebookPdf,
+  type PdfExportProgress,
+} from '@/services/pdfExport'
+import { renderOffscreenPageSheet, cleanupOffscreenPageSheet } from '@/services/exportPageRender'
 
 interface ExportPdfModalProps {
   isOpen?: boolean
@@ -12,6 +15,17 @@ interface ExportPdfModalProps {
   currentPage?: PageData
   notebookTitle?: string
   onClose: () => void
+  /** Nơi portal modal. Web: document.body. Plugin: element host (CSS scope). */
+  portalTarget?: HTMLElement
+  /** Nơi gắn node offscreen khi chụp. Plugin truyền host để style áp đúng. */
+  mountRoot?: HTMLElement
+  /** Tên file gợi ý (plugin: "<tên vở>.pdf"). Web: tự sinh theo timestamp. */
+  filename?: string
+  /**
+   * Host tự lưu bytes PDF. Có → render + gọi callback (plugin lưu vào vault).
+   * Không → render + tải về (web giữ nguyên UX cũ).
+   */
+  onSavePdf?: (data: ArrayBuffer, filename: string) => Promise<void>
 }
 
 export function ExportPdfModal({
@@ -20,6 +34,10 @@ export function ExportPdfModal({
   currentPage,
   notebookTitle: _notebookTitle,
   onClose,
+  portalTarget,
+  mountRoot,
+  filename,
+  onSavePdf,
 }: ExportPdfModalProps) {
   const activePage = currentPage || pages[0]
   const [resolution, setResolution] = useState<ExportResolution>('medium')
@@ -35,126 +53,40 @@ export function ExportPdfModal({
     setErrorMessage(null)
 
     const targetPages = rangeMode === 'all' ? pages : [activePage]
+    // Offscreen render dùng chung service (web + plugin): node gắn vào mountRoot
+    // để CSS áp đúng (plugin scope dưới host), canvas backing theo resolution.
+    const pixelRatioMap: Record<ExportResolution, number> = {
+      low: 1.0,
+      medium: 1.5,
+      high: 2.0,
+    }
+    const renderPage = (page: PageData) =>
+      renderOffscreenPageSheet(page, {
+        pixelRatio: pixelRatioMap[resolution] || 1.5,
+        mountRoot,
+      })
 
     try {
-      await exportNotebookPagesToPdf(
-        targetPages,
-        async (page) => {
-          // Check if the page is currently mounted in the DOM
-          const existing = document.getElementById(`page-sheet-${page.id}`)
-          if (existing) {
-            return existing
-          }
-
-          // Otherwise temporarily mount an offscreen clone
-          const offscreenContainer = document.createElement('div')
-          offscreenContainer.id = `offscreen-export-${page.id}`
-          offscreenContainer.style.position = 'fixed'
-          offscreenContainer.style.top = '-9999px'
-          offscreenContainer.style.left = '-9999px'
-          offscreenContainer.style.zIndex = '-1000'
-          document.body.appendChild(offscreenContainer)
-
-          // Create a static visual representation of the page
-          const sheet = document.createElement('div')
-          sheet.className = `notebook-sheet pattern-${page.pattern || 'ruled'}`
-          sheet.style.width = '800px'
-          sheet.style.height = '1100px'
-          sheet.style.position = 'relative'
-          sheet.style.backgroundColor = '#ffffff'
-
-          // Add margin line
-          if (page.pattern === 'ruled') {
-            const marginLine = document.createElement('div')
-            marginLine.className = 'notebook-margin-line'
-            sheet.appendChild(marginLine)
-          }
-
-          // Render text boxes
-          for (const box of page.textBoxes) {
-            const boxDiv = document.createElement('div')
-            boxDiv.className = 'notebook-textbox'
-            boxDiv.style.transform = `translate3d(${box.x}px, ${box.y}px, 0)`
-            boxDiv.style.width = `${box.width}px`
-            boxDiv.style.position = 'absolute'
-
-            const contentDiv = document.createElement('div')
-            contentDiv.className = 'textbox-rendered markdown-body'
-            contentDiv.style.lineHeight = '32px'
-            contentDiv.innerHTML = renderMarkdown(box.content)
-            boxDiv.appendChild(contentDiv)
-            sheet.appendChild(boxDiv)
-          }
-
-          // Render drawings on a canvas
-          if (page.drawings && page.drawings.length > 0) {
-            const canvas = document.createElement('canvas')
-            canvas.width = 800
-            canvas.height = 1100
-            canvas.style.position = 'absolute'
-            canvas.style.top = '0'
-            canvas.style.left = '0'
-            canvas.style.zIndex = '4'
-            const ctx = canvas.getContext('2d')
-            if (ctx) {
-              for (const elem of page.drawings) {
-                ctx.save()
-                ctx.strokeStyle = elem.color
-                ctx.lineWidth = elem.strokeWidth
-                ctx.lineCap = 'round'
-                ctx.lineJoin = 'round'
-                if (elem.type === 'highlighter') {
-                  ctx.globalAlpha = elem.opacity || 0.35
-                  ctx.lineWidth = elem.strokeWidth * 3
-                }
-                if (elem.type === 'pen' || elem.type === 'highlighter') {
-                  drawSmoothStroke(ctx, elem.points)
-                } else if (elem.type === 'line' && elem.points.length >= 2) {
-                  ctx.beginPath()
-                  ctx.moveTo(elem.points[0].x, elem.points[0].y)
-                  ctx.lineTo(elem.points[1].x, elem.points[1].y)
-                  ctx.stroke()
-                } else if (elem.type === 'arrow' && elem.points.length >= 2) {
-                  drawArrow(ctx, elem.points[0].x, elem.points[0].y, elem.points[1].x, elem.points[1].y)
-                } else if (elem.type === 'rect' && elem.x !== undefined && elem.y !== undefined) {
-                  ctx.strokeRect(elem.x, elem.y, elem.width || 0, elem.height || 0)
-                } else if (elem.type === 'circle' && elem.x !== undefined && elem.y !== undefined) {
-                  ctx.beginPath()
-                  ctx.ellipse(
-                    elem.x + (elem.width || 0) / 2,
-                    elem.y + (elem.height || 0) / 2,
-                    Math.abs((elem.width || 0) / 2),
-                    Math.abs((elem.height || 0) / 2),
-                    0,
-                    0,
-                    Math.PI * 2
-                  )
-                  ctx.stroke()
-                }
-                ctx.restore()
-              }
-            }
-            sheet.appendChild(canvas)
-          }
-
-          // Footer
-          const footer = document.createElement('div')
-          footer.className = 'notebook-footer'
-          footer.innerHTML = `<span class="page-number-label">page ${page.pageNumber}</span>`
-          sheet.appendChild(footer)
-
-          offscreenContainer.appendChild(sheet)
-          return sheet
-        },
-        (element) => {
-          // Cleanup offscreen element
-          if (element.parentElement && element.parentElement.id.startsWith('offscreen-export-')) {
-            element.parentElement.remove()
-          }
-        },
-        resolution,
-        (p) => setProgress(p)
-      )
+      if (onSavePdf) {
+        const { data, filename: name } = await renderNotebookPdf(
+          targetPages,
+          renderPage,
+          cleanupOffscreenPageSheet,
+          resolution,
+          (p) => setProgress(p),
+          filename
+        )
+        await onSavePdf(data, name)
+      } else {
+        await exportNotebookPagesToPdf(
+          targetPages,
+          renderPage,
+          cleanupOffscreenPageSheet,
+          resolution,
+          (p) => setProgress(p),
+          filename
+        )
+      }
 
       setIsExporting(false)
       onClose()
@@ -275,6 +207,6 @@ export function ExportPdfModal({
         )}
       </div>
     </div>,
-    document.body
+    portalTarget ?? document.body
   )
 }

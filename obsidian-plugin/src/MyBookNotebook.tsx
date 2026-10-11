@@ -9,6 +9,7 @@ import type {
   PageImageData,
 } from '@/shared/types/notebook'
 import { NotebookPage } from '@/features/notebook/components/NotebookPage'
+import { ExportPdfModal } from '@/shared/ui/ExportPdfModal'
 import { debounce } from '@/shared/lib/debounce'
 import { MiniToolbar } from './MiniToolbar'
 
@@ -37,7 +38,10 @@ const MAX_HISTORY = 30
 interface MyBookNotebookProps {
   initialMeta: NotebookMetadata
   initialPages: PageData[]
+  filePath: string
+  fileBasename: string
   onSave: (meta: NotebookMetadata, pages: PageData[]) => Promise<void>
+  onSavePdf: (data: ArrayBuffer, filename: string) => Promise<void>
   onNavigateLink: (target: string) => void
 }
 
@@ -77,7 +81,7 @@ export class MyBookErrorBoundary extends React.Component<
     return this.props.children
   }
 }
-export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLink }: MyBookNotebookProps) {
+export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasename, onSave, onSavePdf, onNavigateLink }: MyBookNotebookProps) {
   const [meta, setMeta] = useState<NotebookMetadata>(initialMeta)
   const [pages, setPages] = useState<PageData[]>(initialPages)
   const [zoom, setZoom] = useState(1.0)
@@ -86,6 +90,20 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [isToolLocked, setIsToolLocked] = useState(false)
   const [savedState, setSavedState] = useState<'saved' | 'dirty'>('saved')
+  const [showExport, setShowExport] = useState(false)
+  // Host root (có class scope CSS): modal + node offscreen portal vào đây
+  // để style áp đúng thay vì rớt ra document.body
+  const hostRef = useRef<HTMLDivElement | null>(null)
+
+  // Lệnh palette "Xuất PDF" từ main.ts → mở modal của đúng vở này
+  useEffect(() => {
+    const onRequest = (e: Event) => {
+      const path = (e as CustomEvent<{ path?: string }>).detail?.path
+      if (path === filePath) setShowExport(true)
+    }
+    window.addEventListener('mybook:export-pdf', onRequest)
+    return () => window.removeEventListener('mybook:export-pdf', onRequest)
+  }, [filePath])
 
   const [selText, setSelText] = useState<string[]>([])
   const [selDraw, setSelDraw] = useState<string[]>([])
@@ -389,7 +407,7 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
   }
 
   return (
-    <div className="mybook-obsidian-host mybook-notebook-view">
+    <div ref={hostRef} className="mybook-obsidian-host mybook-notebook-view">
       {/* Toolbar đứng NGOÀI khung cuộn + sticky top:0 (xem obsidian-overrides.css):
           - khung trong cuộn được → toolbar nằm yên trên cùng (flex column)
           - Obsidian cuộn cả view (chuỗi height:100% gãy, khung trong không cuộn)
@@ -435,6 +453,7 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
         onZoomOut={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(1))))}
         onFitZoom={fitZoom}
         onAddPage={addPage}
+        onExportPdf={() => setShowExport(true)}
       />
       <div ref={scrollElRef} className="mybook-pages-scroll">
         <ScrollWidthReporter onWidth={reportScrollW} />
@@ -496,6 +515,17 @@ export function MyBookNotebook({ initialMeta, initialPages, onSave, onNavigateLi
           ))}
         </div>
       </div>
+      {showExport && (
+        <ExportPdfModal
+          pages={pages}
+          notebookTitle={fileBasename}
+          filename={`${fileBasename}.pdf`}
+          portalTarget={hostRef.current ?? undefined}
+          mountRoot={hostRef.current ?? undefined}
+          onSavePdf={onSavePdf}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   )
 }

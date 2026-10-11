@@ -123,6 +123,19 @@ export default class MyBookPlugin extends Plugin {
       },
     })
 
+    this.addCommand({
+      id: 'mybook-export-pdf',
+      name: 'Xuất vở đang mở ra PDF',
+      checkCallback: (checking) => {
+        const leaf = this.app.workspace.activeLeaf
+        if (leaf?.view instanceof MyBookView) {
+          if (!checking) leaf.view.requestPdfExport()
+          return true
+        }
+        return false
+      },
+    })
+
     // Mặc định mở vault hiện tại làm vault (đồng bộ với app MyBook desktop)
     try {
       localStorage.setItem('mybook_vault_path', this.vaultRoot())
@@ -274,6 +287,11 @@ class MyBookView extends ItemView {
     return this.currentFilePath ? { file: this.currentFilePath } : {}
   }
 
+  /** Command palette "Xuất PDF" → mở modal export của đúng vở này */
+  requestPdfExport(): void {
+    window.dispatchEvent(new CustomEvent('mybook:export-pdf', { detail: { path: this.currentFilePath } }))
+  }
+
   async onOpen(): Promise<void> {
     const container = this.containerEl.children[1]
     container.empty()
@@ -357,6 +375,8 @@ class MyBookView extends ItemView {
           React.createElement(MyBookNotebook, {
         initialMeta,
         initialPages,
+        filePath: path,
+        fileBasename: file.basename,
         onSave: async (meta, pages) => {
           // Đọc path hiện tại lúc lưu (file có thể đã được đổi tên/di chuyển)
           const live = this.currentFilePath
@@ -367,6 +387,24 @@ class MyBookView extends ItemView {
             await this.app.vault.modify(current, exportNotebookToMarkdown(meta, pages))
           } catch (err) {
             new Notice('MyBook: không lưu được file (đã bị xóa/di chuyển?)')
+            throw err
+          }
+        },
+        onSavePdf: async (data, filename) => {
+          // Lưu PDF cạnh file vở, tên trùng thì tăng số (không ghi đè)
+          const slash = path.lastIndexOf('/')
+          const dir = slash >= 0 ? path.substring(0, slash) : ''
+          const base = filename.replace(/\.pdf$/i, '') || 'notebook'
+          let target = dir ? `${dir}/${base}.pdf` : `${base}.pdf`
+          for (let n = 1; n < 100; n++) {
+            if (!this.app.vault.getAbstractFileByPath(target)) break
+            target = dir ? `${dir}/${base} ${n}.pdf` : `${base} ${n}.pdf`
+          }
+          try {
+            await this.app.vault.createBinary(target, data)
+            new Notice(`MyBook: đã xuất PDF → ${target}`)
+          } catch (err) {
+            new Notice(`MyBook: không lưu được PDF (${err instanceof Error ? err.message : err})`)
             throw err
           }
         },

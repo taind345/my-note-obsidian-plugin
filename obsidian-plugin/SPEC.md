@@ -17,10 +17,13 @@
   nhân bản, Đưa lên/xuống, khung card, undo/redo (`Ctrl+Z/Y`), zoom + fit, thêm trang,
   autosave về file (debounce 1.2s), theo dõi rename/delete.
 - Ảnh `![[...]]` trong chữ resolve qua Vault API (`resourcePath`).
+- Xuất PDF: nút Download trên toolbar + command *Xuất vở đang mở ra PDF* (modal
+  chọn độ phân giải/phạm vi dùng chung `ExportPdfModal`, file lưu cạnh vở,
+  tên trùng tự tăng số).
 
 **Không có (cố ý):**
 - Sidebar, tab, markdown editor (Reading/Live/Simple), split view, QuickOpen, settings,
-  theme pastel đầy đủ (giữ tone mặc định), export PDF, engine Excalidraw (stub báo rõ).
+  theme pastel đầy đủ (giữ tone mặc định), engine Excalidraw (stub báo rõ).
 
 ---
 
@@ -128,8 +131,9 @@ Rồi trong Obsidian: bật plugin → Reload (`Ctrl+P`) → mở 1 file `.mynot
    Khung trong cuộn được → toolbar nằm yên (flex column); Obsidian cuộn cả view
    → sticky dính theo. Nếu tái phát, kiểm tra `overflow` chain trong DevTools
    Obsidian (`Ctrl+Shift+I`) xem phần tử nào scroll thật.
-2. Canvas backing tối đa 3x (zoom to + màn hidpi rất lớn có thể hơi mờ khi zoom >200%).
-3. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM (mỗi canvas 2x ~14–28MB).
+2. Backing canvas hợp nhất cho preview/static (`canvasBackingScale`: dpr×zoom,
+   min 1 max 4) — zoom 2× trên hidpi vẫn nét; cap 4x để nhẹ RAM.
+3. Chưa virtualize: vở hàng chục trang + ảnh base64 nặng RAM.
 4. Chưa có undo cho thao tác trong textbox đang gõ dở (dùng undo native của textarea).
 5. Mobile chưa test (đánh dấu `isDesktopOnly: false` nhưng chưa verify cảm ứng).
 

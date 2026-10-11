@@ -6,17 +6,25 @@ export interface PdfExportProgress {
   status: string
 }
 
+export interface PdfExportResult {
+  /** Bytes PDF — host tự quyết: web thì download, plugin Obsidian thì lưu vào vault */
+  data: ArrayBuffer
+  filename: string
+}
+
 /**
- * Sequentially renders and exports notebook pages to PDF.
- * Avoids memory spikes by processing pages one-by-one and releasing image buffers.
+ * Render thuần các trang vở thành bytes PDF (không đụng DOM download hay
+ * filesystem). Web app gọi exportNotebookPagesToPdf (render + tải về);
+ * plugin Obsidian gọi renderNotebookPdf rồi tự lưu vào vault.
  */
-export async function exportNotebookPagesToPdf(
+export async function renderNotebookPdf(
   pages: PageData[],
   renderPageElement: (page: PageData) => Promise<HTMLElement>,
   cleanupRenderedElement: (element: HTMLElement) => void,
   resolution: ExportResolution = 'medium',
-  onProgress?: (progress: PdfExportProgress) => void
-): Promise<void> {
+  onProgress?: (progress: PdfExportProgress) => void,
+  filename?: string
+): Promise<PdfExportResult> {
   // Dynamically import jsPDF and html-to-image so they are code-split and not in main bundle
   const { jsPDF } = await import('jspdf')
   const { toJpeg } = await import('html-to-image')
@@ -77,11 +85,46 @@ export async function exportNotebookPagesToPdf(
     onProgress({
       current: total,
       total,
-      status: 'Finalizing PDF download...',
+      status: 'Finalizing PDF...',
     })
   }
 
-  // Yield before save
+  // Yield before output
   await new Promise((resolve) => setTimeout(resolve, 50))
-  pdf.save(`notebook-${Date.now()}.pdf`)
+  const data = pdf.output('arraybuffer') as ArrayBuffer
+  return { data, filename: filename || `notebook-${Date.now()}.pdf` }
+}
+
+/**
+ * Web app: render + tải file về (giữ nguyên UX cũ).
+ * Xử lý từng trang nối tiếp + gỡ buffer ngay để không spike RAM.
+ */
+export async function exportNotebookPagesToPdf(
+  pages: PageData[],
+  renderPageElement: (page: PageData) => Promise<HTMLElement>,
+  cleanupRenderedElement: (element: HTMLElement) => void,
+  resolution: ExportResolution = 'medium',
+  onProgress?: (progress: PdfExportProgress) => void,
+  filename?: string
+): Promise<void> {
+  const { data, filename: name } = await renderNotebookPdf(
+    pages,
+    renderPageElement,
+    cleanupRenderedElement,
+    resolution,
+    onProgress,
+    filename
+  )
+  const blob = new Blob([data], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
 }

@@ -4,6 +4,8 @@ import rough from 'roughjs'
 import type { ToolType, DrawingElement, Point, TextBoxData, PageImageData } from '@/shared/types/notebook'
 import { drawSmoothStroke } from '@/shared/lib/smoothing'
 import { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from '@/shared/lib/lineSnap'
+import { canvasBackingScale } from '../lib/canvasResolution'
+import { getElementSeed } from '../lib/elementSeed'
 import { normalizeRect, isClickRect, marqueeSelect, toggleInList, rectsIntersect } from '@/shared/lib/selection'
 import { Trash2, Copy, Lock, Unlock, ArrowUp, ArrowDown, Frame } from 'lucide-react'
 
@@ -56,15 +58,6 @@ type ResizeHandleType =
   | 'arrow-end'
 
 const HANDLE_SIZE = 8
-
-function getElementSeed(id: string): number {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash << 5) - hash + id.charCodeAt(i)
-    hash |= 0
-  }
-  return Math.abs(hash) || 1
-}
 
 export function PageCanvas({
   pageId,
@@ -188,17 +181,10 @@ export function PageCanvas({
     return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 }
   }, [])
 
-  // Redraw static elements onto the static canvas with roughjs
-  // Tỉ lệ pixel canvas để nét vẽ sắc (tối đa 2x, tránh tốn RAM khi nhiều trang)
-  const pixelRatio =
-    typeof window !== 'undefined' && window.devicePixelRatio
-      ? Math.min(2, window.devicePixelRatio)
-      : 1
-
-  // Backing store theo zoom của view (zoom to vẫn nét) — cap 3x để nhẹ RAM.
-  // Canvas preview (nét đang vẽ) giữ 2x cho nhẹ, thả tay là static redraw nét ngay.
-  const staticBacking = Math.min(3, pixelRatio * canvasPixelScale)
-  const activeBacking = pixelRatio
+  // Backing store DUY NHẤT cho cả 2 canvas (static đã xong + active preview
+  // đang vẽ): cùng scale → preview và finished pixel-identical (cùng routine
+  // vẽ + cùng seed rough), zoom to vẫn nét. Xem lib/canvasResolution.
+  const canvasBacking = canvasBackingScale(canvasPixelScale)
 
   // Chuẩn bị context: reset transform, xóa full, scale theo backing thực tế
   const setupCtx = (
@@ -319,7 +305,7 @@ export function PageCanvas({
 
       ctx.restore()
     }
-  }, [elements, handDrawnStyle, staticBacking])
+  }, [elements, handDrawnStyle, canvasBacking])
 
   // Vẽ lại canvas tĩnh, throttle theo frame: kéo nhóm nhiều object liên tục
   // chỉ redraw 1 lần/frame thay vì mỗi pointermove (đỡ jank trang nhiều nét)
@@ -1289,19 +1275,19 @@ export function PageCanvas({
       }}
       onContextMenu={handleCanvasContextMenu}
     >
-      {/* 1. Static Canvas (nét sắc theo zoom, backing = staticBacking) */}
+      {/* 1. Static Canvas (chung backing với preview → finished giống hệt lúc vẽ) */}
       <canvas
         ref={staticCanvasRef}
-        width={Math.round(PAGE_WIDTH * staticBacking)}
-        height={Math.round(PAGE_HEIGHT * staticBacking)}
+        width={Math.round(PAGE_WIDTH * canvasBacking)}
+        height={Math.round(PAGE_HEIGHT * canvasBacking)}
         className="drawing-canvas static-canvas"
       />
 
       {/* 2. Active Canvas (drawing preview) */}
       <canvas
         ref={activeCanvasRef}
-        width={Math.round(PAGE_WIDTH * activeBacking)}
-        height={Math.round(PAGE_HEIGHT * activeBacking)}
+        width={Math.round(PAGE_WIDTH * canvasBacking)}
+        height={Math.round(PAGE_HEIGHT * canvasBacking)}
         className={`drawing-canvas active-canvas ${activeTool === 'eraser' ? 'is-eraser-mode' : ''}`}
         style={{
           pointerEvents: activeTool === 'text' ? 'none' : 'auto',

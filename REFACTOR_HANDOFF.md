@@ -59,17 +59,25 @@
   được scroll ngoài của Obsidian. Đã cài vào vault red (install-to-vault), cần Reload
   Obsidian để kiểm chứng tay: mở vở 2+ trang, cuộn giữa trang 2 xem toolbar còn không.
 
-## 3. Thứ tự refactor gợi ý (ROI cao → thấp)
+## 3. Thứ tự refactor gợi ý (ROI cao → thấp) — cập nhật 2026-10-11
 
-1. Chẻ `obsidian-plugin/src/MyBookNotebook.tsx` (~500 dòng) → `useNotebookHistory` +
-   `usePageMutations` hooks; `main.ts` (~390) tách asset-resolver/open-helpers.
-2. Toolbar/config dùng chung: `MiniToolbar` trùng ~70% `HeaderToolbar` — tách
-   `tools-config.ts` + `ColorSwatches`/`WidthPicker` chung cho app + plugin.
-3. Xóa `console.log('[MyBook]...')` khi stable (giữ `console.error`).
-4. CSS `App.css`: tách theo module; xóa rule chết sau scope (VD `.tab-new-dropdown`
-   không dùng trong plugin); `SPEC.md` §13 liệt kê những gì đã dọn (đừng dọn lại).
-5. Mở rộng smoke Node thành test thật (parse file mẫu, scope-css không rò selector).
-6. KHÔNG đụng: format `.mynote.md`, `VaultBackend` interface, `MarkdownRenderOptions.resolveAsset`.
+ĐÃ XONG (đừng làm lại):
+- `tools-config.ts` + `ColorSwatches`/`WidthPicker` dùng chung app + plugin.
+- Xóa `console.log('[MyBook]...')` debug (giữ `console.error`).
+- `getElementSeed` dùng chung (preview/static/export cùng seed, không morph).
+- PDF: `renderNotebookPdf` (trả bytes) + `exportPageRender.renderOffscreenPageSheet`
+  (có ảnh paste + canvas backing theo resolution + rough giống màn hình);
+  `ExportPdfModal` thêm props `portalTarget`/`mountRoot`/`onSavePdf`/`filename`.
+- Backing canvas hợp nhất preview/static (`canvasBackingScale`, max 4x).
+
+CÒN LẠI:
+1. Chẻ `obsidian-plugin/src/MyBookNotebook.tsx` (~520 dòng) → `useNotebookHistory` ver
+   plugin + `usePageMutations` hooks; `main.ts` tách asset-resolver/open-helpers
+   (lưu ý: `main.ts` giờ thêm `onSavePdf` + command export — tách thì mang theo).
+2. CSS: xóa rule chết sau scope (VD `.tab-new-dropdown`); `SPEC.md` §13 liệt kê
+   những gì đã dọn (đừng dọn lại).
+3. Mở rộng smoke Node thành test thật (parse file mẫu, scope-css không rò selector).
+4. KHÔNG đụng: format `.mynote.md`, `VaultBackend` interface, `MarkdownRenderOptions.resolveAsset`.
 
 ## 4. Lệnh nhanh
 

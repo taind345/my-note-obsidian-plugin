@@ -1,7 +1,7 @@
 import {
   MousePointer, Pen, Highlighter, Eraser, Minus, ArrowUpRight,
   Square, Circle, Type, Lock, Unlock, Plus, ZoomIn, ZoomOut, RotateCcw, RotateCw,
-  Maximize,
+  Maximize, Download,
 } from 'lucide-react'
 import type { ToolType } from '@/shared/types/notebook'
 import type { WidthDef } from '@/shared/lib/tools-config'
@@ -27,6 +27,7 @@ interface MiniToolbarProps {
   onZoomOut: () => void
   onFitZoom: () => void
   onAddPage: () => void
+  onExportPdf: () => void
 }
 
 /** Nấc nét riêng của plugin (giữ nguyên UX cũ) — map sang WidthDef để dùng chung WidthPicker */
@@ -91,6 +92,9 @@ export function MiniToolbar(p: MiniToolbarProps) {
       </button>
       <button type="button" className="undo-redo-btn" title="Thêm trang" onClick={p.onAddPage}>
         <Plus size={13} />
+      </button>
+      <button type="button" className="undo-redo-btn" title="Xuất vở ra PDF" onClick={p.onExportPdf}>
+        <Download size={13} />
       </button>
       <span className={`autosave-indicator status-${p.savedState === 'dirty' ? 'dirty' : 'saved'}`}>
         {p.savedState === 'dirty' ? '●' : '✓'}

@@ -116,7 +116,8 @@ npm run install-to-vault   # copy vào vault red/.obsidian/plugins/mybook-notebo
 
 Rồi trong Obsidian: **Settings → Community plugins → bật "MyBook Notebook" → Reload**
 (`Ctrl+P` → "Reload app without saving" cho chắc). Click file `.mynote.md` bất kỳ là mở
-bằng vở. Thêm lệnh: *Tạo vở MyBook mới*, *Mở file đang xem bằng MyBook* (+ icon ribbon).
+bằng vở. Thêm lệnh: *Tạo vở MyBook mới*, *Mở file đang xem bằng MyBook*,
+*Xuất vở đang mở ra PDF* (+ icon ribbon, nút Download trên toolbar vở — PDF lưu cạnh file vở).
 
 Lưu ý bản đầu: ảnh `![[...]]` trong textbox resolve qua tên file vault; decor washi/mèo/lá
 của theme pastel bị ẩn trong Obsidian (asset không ship theo plugin); engine Excalidraw
