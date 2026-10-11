@@ -37,6 +37,13 @@ export class StrokeStream {
     return true
   }
 
+  /** Điểm đã nhận cuối cùng (để kẹp release teleport): buf cuối, không thì frozen cuối. */
+  lastAcceptedPoint(): Point | null {
+    if (this.buf.length > 0) return this.buf[this.buf.length - 1]
+    if (this.frozen.length > 0) return this.frozen[this.frozen.length - 1]
+    return null
+  }
+
   /**
    * CỬA DUY NHẤT ra dữ liệu vẽ: preview, commit, test đều qua đây nên pixels
    * khớp từng bit (đồng bộ 1:1). Làm tròn + strip {x,y} ngay tại đây để frame

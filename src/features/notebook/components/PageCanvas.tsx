@@ -216,6 +216,12 @@ export function PageCanvas({
   // Xả hết mỗi rAF (vẽ 1 lần) nên không tồn đọng; cap chống burst bệnh hoạn.
   const pendingMoveQueueRef = useRef<Point[]>([])
   const MAX_QUEUE = 256
+  // Pointer đang giữ gesture vẽ/tẩy (chống ngón thứ 2/lòng bàn tay chen vào
+  // giữa nét: reset stream + nhét tọa độ lạ + commit teleport → gai nhọn).
+  const activePointerIdRef = useRef<number | null>(null)
+  // Nhảy xa hơn ngưỡng này trong 1 event là teleport, không phải tay người
+  // (flick nhanh nhất cũng <150px/event) → bỏ qua, giữ điểm cũ
+  const MAX_RELEASE_JUMP_PX = 150
 
   // Selection & Manipulation state
   const [, setActiveHandle] = useState<ResizeHandleType | null>(null)
@@ -661,7 +667,11 @@ export function PageCanvas({
       return
     }
 
-    // Mode: Drawing
+    // Mode: Drawing — 1 gesture 1 pointer: ngón thứ 2 chạm giữa nét thì bỏ qua
+    // (không reset stream/seed giữa chừng); gesture treo thì pointer mới takeover sạch
+    const owner = activePointerIdRef.current
+    if (isDrawingRef.current && owner !== null && owner !== e.pointerId) return
+    activePointerIdRef.current = e.pointerId
     isDrawingRef.current = true
     activeDrawingSeedRef.current = Math.floor(Math.random() * 10000000) + 1
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -754,6 +764,11 @@ export function PageCanvas({
     }
 
     if (!isDrawingRef.current) return
+
+    // Bỏ qua pointer lạ giữa gesture (ngón 2/lòng bàn tay): select/marquee ở
+    // trên vẫn tự do, còn vẽ/tẩy thì 1 pointer duy nhất
+    const mover = activePointerIdRef.current
+    if (mover !== null && mover !== e.pointerId) return
 
     if (activeTool === 'eraser') {
       eraseAtPoint(point)
@@ -946,6 +961,8 @@ export function PageCanvas({
     }
 
     if (activeTool === 'eraser') {
+      if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) return
+      activePointerIdRef.current = null
       isDrawingRef.current = false
       startPointRef.current = null
       try {
@@ -956,6 +973,8 @@ export function PageCanvas({
     }
 
     if (!isDrawingRef.current) return
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) return
+    activePointerIdRef.current = null
     isDrawingRef.current = false
 
     if (rafIdRef.current !== null) {
@@ -967,8 +986,27 @@ export function PageCanvas({
     // (xóa trong redrawStaticCanvas cùng frame) → không nháy trắng 1 frame,
     // không cảm giác giật khi thả bút. Các nhánh return sớm bên dưới tự xóa.
 
-    const endPoint = getCanvasCoords(e)
-    const sp = startPointRef.current || endPoint
+    const rawEnd = getCanvasCoords(e)
+    const sp = startPointRef.current || rawEnd
+    // Xả nốt move dồn sau frame preview cuối (pointerup thường tới sau vài event
+    // chưa kịp vẽ/preview) để nét commit không cụt đoạn cuối.
+    const pendingTail = pendingMoveQueueRef.current
+    pendingMoveQueueRef.current = []
+    const isFreehand = activeTool === 'pen' || activeTool === 'highlighter'
+    const stream = isFreehand ? strokeStreamRef.current : null
+    if (stream) {
+      for (const p of pendingTail) stream.push(p)
+    }
+    // Kẹp release teleport: nhấc bút mà tọa độ nhảy xa bất thường so với điểm
+    // tươi nhất đã thấy (>150px/event là teleport, flick tay nhanh nhất cũng dưới)
+    // thì giữ điểm cũ — chống gai nhọn bắn ra chỗ không vẽ (ngón lạ/OS glitch).
+    const anchorPt = isFreehand
+      ? stream?.lastAcceptedPoint() ?? sp
+      : (pendingTail[pendingTail.length - 1] ?? sp)
+    const endPoint =
+      Math.hypot(rawEnd.x - anchorPt.x, rawEnd.y - anchorPt.y) > MAX_RELEASE_JUMP_PX
+        ? { ...anchorPt }
+        : rawEnd
     const elemId = `elem_${pageId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
 
     if (activeTool === 'pen' || activeTool === 'highlighter') {
