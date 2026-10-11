@@ -37,27 +37,39 @@ export class StrokeStream {
     return true
   }
 
-  /** Polyline hiện tại để preview: đầu đóng băng + đuôi tính lại. */
-  snapshot(): Point[] {
-    if (this.buf.length === 0) return this.frozen.slice()
-    const win = simplifyPolyline(this.buf, this.epsilon)
-    if (this.frozen.length === 0) return win
-    return [...this.frozen, ...win.slice(1)]
-  }
-
   /**
-   * Chốt nét: đẩy nốt điểm thả bút (nếu khác biệt) qua cùng pipeline rồi trả
-   * points gọn (bỏ pressure/time + tròn 1dp — render chỉ cần x/y).
-   * Trả về [] nếu không đủ 2 điểm (caller bỏ qua như cũ).
+   * CỬA DUY NHẤT ra dữ liệu vẽ: preview, commit, test đều qua đây nên pixels
+   * khớp từng bit (đồng bộ 1:1). Làm tròn + strip {x,y} ngay tại đây để frame
+   * preview cuối và nét commit là cùng 1 mảng số — render sau này (static,
+   * mount lại, export) dùng đúng mảng này nên khớp vĩnh viễn.
    */
-  finish(release?: Point): Point[] {
-    if (release) this.push(release)
-    const pts = this.snapshot()
-    if (pts.length < 2) return []
-    return pts.map((p) => ({
+  snapshot(): Point[] {
+    const joined =
+      this.frozen.length === 0
+        ? simplifyPolyline(this.buf, this.epsilon)
+        : [...this.frozen, ...simplifyPolyline(this.buf, this.epsilon).slice(1)]
+    return joined.map((p) => ({
       x: Math.round(p.x * 10) / 10,
       y: Math.round(p.y * 10) / 10,
     }))
+  }
+
+  /**
+   * Chốt nét = snapshot cuối + nốt điểm thả bút (nếu khác biệt): phần cũ khớp
+   * preview tuyệt đối, đoạn nối tới release là thông tin mới đúng ý tay
+   * (Excalidraw cũng commit tới release point). Trả về [] nếu không đủ 2 điểm.
+   */
+  finish(release?: Point): Point[] {
+    const pts = this.snapshot()
+    if (release) {
+      const last = pts.length > 0 ? pts[pts.length - 1] : null
+      const r = { x: Math.round(release.x * 10) / 10, y: Math.round(release.y * 10) / 10 }
+      if (!last || Math.hypot(r.x - last.x, r.y - last.y) >= StrokeStream.MIN_GAP) {
+        pts.push(r)
+      }
+    }
+    if (pts.length < 2) return []
+    return pts
   }
 
   private freezeWindow(): void {
