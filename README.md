@@ -1,141 +1,90 @@
-# 📓 MyBook — Sổ tay lai số & giấy
+# MyNote: Digital-Paper Hybrid Notebook
 
-Sổ tay vật lý số hoá: **vẽ tay + textbox markdown + paste ảnh** trên trang giấy giới hạn (800×1100px), quản lý file kiểu **Obsidian vault** (tab markdown / mynote / code, split view, quick open, wikilink), theme Pastel "Better Notes", xuất PDF.
-
-> 1 code chạy 2 môi trường: `npm run dev` (web + plugin `/api/fs`) và app desktop **Tauri** (đọc/ghi file thật qua plugin-fs).
+A bounded-canvas (800×1100px) note-taking application combining freehand drawing, Markdown cards, and Obsidian-style vault file management. Runs on Web (Vite `/api/fs`) and Desktop (Tauri `plugin-fs`).
 
 ---
 
-## ✨ Tính năng chính
+## Key Features
 
-- **Vở vật lý**: bút mực, dạ quang, tẩy, line/arrow/rect/circle (rough.js), undo/redo 50 bước, lật trang 3D, 3 chế độ xem (2 trang / 1 trang / cuộn dọc)
-- **Textbox markdown**: checkbox, highlight, wikilink `[[...]]`, bảng, code, callout; kéo-thả, resize, khóa, nhân bản, **khung card** (chuột phải → Hiển thị khung)
-- **Select kiểu Excalidraw**: kéo vùng chọn nhiều object (nét + ảnh + chữ), Shift+Click cộng dồn, kéo cả nhóm, chuột phải **Đưa lên trên / Đưa xuống dưới**, `Delete` / `Ctrl+D`
-- **Paste ảnh** (`Ctrl+V`, kéo-thả, nút Ảnh) ngay vị trí con trỏ — nằm dưới chữ/nét vẽ để viết đè lên
-- **Vault**: cây thư mục, tạo/sửa/xóa/đổi tên file & folder, Open Vault đổi thư mục, tìm kiếm
-- **Tab + Split view**: nhiều tab, chia đôi màn hình 2 note (mynote ép cuộn dọc), nút `+` mở tab mới
-- **Ctrl+O** Quick Open tìm file; gợi ý `[[wikilink]]` khi gõ trong markdown editor
-- **Theme**: Mặc định / Pastel "Better Notes" (Settings `Ctrl+,`), doodle + watermark asset thật trên giấy
-- **Lưu trữ**: autosave IndexedDB + ghi thẳng file `.md` / `.mynote.md` ra vault; xuất PDF nhiều độ phân giải
+* **Analog Canvas:** Ink, highlighter, eraser, rough.js geometric shapes, 50-step undo/redo, 3D page flip, and multi-page/continuous scroll modes.
+* **Markdown Cards:** Checklists, code blocks, tables, callouts, and `[[wikilinks]]` in draggable, resizable containers.
+* **Selection & Stacking:** Multi-object selection, group movement, z-ordering (Bring to Front / Send to Back), and duplication.
+* **Media:** Paste (`Ctrl+V`) or drag images placed beneath strokes and text for natural annotation.
+* **Vault Workspace:** File tree management, split view, multi-tab layout, Quick Open (`Ctrl+O`), and PDF export.
 
-## ⌨️ Phím tắt hay dùng
+## Key Shortcuts
 
-| Phím | Tác dụng |
-|---|---|
-| `1–9`, `Q` | Đổi tool / khóa tool |
-| `Ctrl+S` | Lưu nhanh |
+| Shortcut | Action |
+| --- | --- |
+| `1–9`, `Q` | Switch / Lock tool |
+| `Ctrl+S` | Quick save |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
-| `Ctrl+O` | Tìm và mở file (Quick Open) |
-| `Ctrl+,` | Cài đặt (đổi theme, font, phím tắt) |
-| `Ctrl+\` | Đóng/mở sidebar |
-| `Delete` / `Ctrl+D` / `Esc` | Xóa / nhân bản / bỏ chọn vùng đang chọn |
+| `Ctrl+O` | Quick Open |
+| `Ctrl+,` | Settings |
+| `Ctrl+\` | Toggle sidebar |
+| `Delete` / `Ctrl+D` / `Esc` | Delete / Duplicate / Deselect |
 
 ---
 
-## 🛠️ Chạy web (dev)
+## Development & Build
+
+### Web
 
 ```bash
-cd /mnt/DATA_D/DESKTOP/DATA_DESKTOP/0-CODE/MY_BOOK
-npm install      # lần đầu
-npm run dev      # mở http://localhost:5173 (giữ port 5173 cho Tauri)
+cd /mnt/DATA_D/DESKTOP/DATA_DESKTOP/0-CODE/MY_NOTE
+npm install
+npm run dev # http://localhost:5173
+
 ```
 
-Chế độ này đầy đủ nhất để code/test vì vault đọc/ghi qua plugin `/api/fs` của Vite.
+### Desktop (Tauri)
 
-## 📦 Build app desktop (Tauri)
-
-### Lần đầu: cài môi trường
+**Prerequisites (Fedora):**
 
 ```bash
-# 1. System libs (Fedora) — cần mật khẩu sudo
 sudo dnf install -y webkit2gtk4.1-devel openssl-devel curl wget file \
   libappindicator-gtk3-devel librsvg2-devel libxdo-devel
-
-# 2. Rust (user-space, không cần sudo)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 export PATH="$HOME/.cargo/bin:$PATH"
+
 ```
 
-### Build app
+**Build:**
 
 ```bash
-cd /mnt/DATA_D/DESKTOP/DATA_DESKTOP/0-CODE/MY_BOOK
-export PATH="$HOME/.cargo/bin:$PATH"
-npx tauri build        # lần đầu ~10 phút (tải crate Rust), lần sau nhanh hơn nhiều
-```
-
-File app nằm ở `src-tauri/target/release/bundle/`:
-
-| File | Dùng sao |
-|---|---|
-| `appimage/MyBook_0.1.0_amd64.AppImage` | **Khuyên dùng.** `chmod +x` rồi chạy trực tiếp, không cần root, không cài đặt |
-| `deb/MyBook_0.1.0_amd64.deb` | `sudo dnf install ./....deb` — hiện trong menu ứng dụng |
-
-Test nhanh không cần build: `npx tauri dev` (app chạy live-reload).
-
-### Quy trình fix bug → ra bản mới
-
-```bash
-# 1. Sửa code, test bằng npm run dev (hoặc npx tauri dev)
-# 2. Build lại
-npx tauri build
-# 3. Chạy file AppImage mới (đè lên bản cũ là xong)
-```
-
-**Dữ liệu không mất** khi build/cài đè:
-- File vault nằm trong thư mục Obsidian của bạn (mặc định `.../0_Obsidian notebook/red`)
-- Note nháp IndexedDB nằm ở `~/.local/share/com.mybook.desktop`
-
-### Cấu trúc Tauri trong repo
+npx tauri dev   # Live-reload desktop dev
+npx tauri build # Outputs AppImage & DEB in src-tauri/target/release/bundle/
 
 ```
-src-tauri/
-  tauri.conf.json      # app id com.mybook.desktop, cửa sổ 1440×900, target deb+appimage,
-                       # asset-protocol scope $HOME/** (để ảnh vault hiện trong app)
-  capabilities/default.json  # quyền FS giới hạn $HOME/** (đọc/ghi/xóa/đổi tên/tạo)
-  src/{main,lib}.rs    # plugin fs + dialog (+ log khi dev)
-src/shared/lib/tauriFs.ts   # isTauri() + index file vault + resolve ảnh sang asset:// URL
-src/services/vaultService.ts  # tự chọn backend: plugin-fs (app) hay /api/fs (web)
-```
 
-Muốn đổi thư mục vault mặc định: sửa `DEFAULT_VAULT_PATH` trong `src/services/vaultService.ts`.
+* Data persists directly in your local vault path and IndexedDB (`~/.local/share/com.mynote.desktop`).
 
 ---
 
-## 🔌 Plugin Obsidian — my note
+## Obsidian Plugin
 
-Dùng trang vở MyBook (textbox + vẽ tay + ảnh paste + select) **ngay trong app Obsidian**
-cho file `.mynote.md`, lưu trực tiếp qua Vault API (không cần chạy app MyBook riêng).
+Enables native editing of `.mynote.md` files directly inside Obsidian.
 
 ```bash
 cd obsidian-plugin
-npm install        # lần đầu
-npm run build      # → main.js + styles.css (đã scope CSS, không rò ra UI Obsidian)
-npm run install-to-vault   # copy vào vault red/.obsidian/plugins/mynote/
+npm install
+npm run build
+npm run install-to-vault
+
 ```
 
-Rồi trong Obsidian: **Settings → Community plugins → bật "my note" → Reload**
-(`Ctrl+P` → "Reload app without saving" cho chắc). Click file `.mynote.md` bất kỳ là mở
-bằng vở. Thêm lệnh: *Tạo vở MyBook mới*, *Mở file đang xem bằng MyBook*,
-*Xuất vở đang mở ra PDF* (+ icon ribbon, nút Download trên toolbar vở — PDF lưu cạnh file vở).
-
-Lưu ý bản đầu: ảnh `![[...]]` trong textbox resolve qua tên file vault; decor washi/mèo/lá
-của theme pastel bị ẩn trong Obsidian (asset không ship theo plugin); engine Excalidraw
-thay bằng stub (vở dùng engine vẽ native mặc định).
-
-> **Quan trọng (xung đột plugin Excalidraw):** file vở `.mynote.md` dùng frontmatter
-> `mybook-plugin: parsed`. File vở cũ ghi `excalidraw-plugin: parsed` sẽ bị plugin
-> Excalidraw cướp và báo lỗi JSON — đổi dòng đó thành `mybook-plugin: parsed` là hết
-> (app mới xuất ra đã dùng marker mới; file trong vault red đã migrate xong).
+1. Enable **my note** under **Settings → Community plugins** and reload Obsidian.
+2. Ensure note frontmatter uses `mynote-plugin: parsed` to avoid conflicts with Excalidraw.
 
 ---
 
-## 🧪 Scripts
+## Common Scripts
 
 ```bash
-npm run dev       # web dev (localhost:5173)
-npm run build     # tsc + vite build ra dist/
-npm run preview   # xem thử bản dist
-npm run lint      # oxlint
-npm run tauri     # Tauri CLI (dev/build/icon...)
+npm run dev      # Start dev server
+npm run build    # Type-check and production build
+npm run preview  # Preview dist build
+npm run lint     # Run oxlint
+npm run tauri    # Tauri CLI proxy
+
 ```
