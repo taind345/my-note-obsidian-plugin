@@ -3,7 +3,7 @@ import type { PageData, ToolType, DrawingElement, TextBoxData, PageImageData } f
 import { NotebookTextBox } from './NotebookTextBox'
 import { PageCanvas } from './PageCanvas'
 import { PageImageLayer } from './PageImageLayer'
-import { PAGE_WIDTH, PAGE_HEIGHT, TOP_MARGIN, displayScale } from '@/shared/lib/lineSnap'
+import { PAGE_WIDTH, PAGE_HEIGHT, TOP_MARGIN, displayScale, DEFAULT_TEXTBOX_WIDTH, FULL_TEXTBOX_WIDTH } from '@/shared/lib/lineSnap'
 import {
   extractImagesFromClipboard,
   extractImagesFromDrop,
@@ -195,14 +195,41 @@ export function NotebookPage({
     }
   }
 
-  // Ctrl+V ảnh (screenshot / copy ảnh từ web, Zalo, Paint...) vào đúng chỗ con trỏ
+  // Ctrl+V ảnh hoặc dán văn bản trực tiếp vào trang
   const handlePagePaste = (e: React.ClipboardEvent) => {
+    const targetTag = (e.target as HTMLElement)?.tagName
+    if (targetTag === 'TEXTAREA' || targetTag === 'INPUT') return
+
     const imageFiles = extractImagesFromClipboard(e)
     if (imageFiles.length > 0) {
       e.preventDefault()
       e.stopPropagation()
       handledPasteAtRef.current = Date.now()
       insertImageFiles(imageFiles, mousePosRef.current)
+      return
+    }
+
+    const text = e.clipboardData?.getData('text')
+    if (text && text.trim()) {
+      e.preventDefault()
+      e.stopPropagation()
+      handledPasteAtRef.current = Date.now()
+      const isLong = text.length > 40 || text.includes('\n')
+      const targetW = isLong ? FULL_TEXTBOX_WIDTH : DEFAULT_TEXTBOX_WIDTH
+      const anchor = mousePosRef.current || { x: 80, y: 120 }
+      const newX = Math.max(16, Math.min(PAGE_WIDTH - 120, Math.round(anchor.x)))
+      const newY = Math.max(16, Math.min(PAGE_HEIGHT - 60, Math.round(anchor.y)))
+      const newBox: TextBoxData = {
+        id: `tb_${page.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        x: newX,
+        y: newY,
+        width: Math.min(targetW, PAGE_WIDTH - newX - 20),
+        content: text,
+        isEditing: false,
+      }
+      onAddTextBox(page.id, newBox)
+      onSelectTextBox(newBox.id)
+      clearCanvasSelection()
     }
   }
 
@@ -217,6 +244,8 @@ export function NotebookPage({
       if (Date.now() - handledPasteAtRef.current < 400) return
       const el = pageContainerRef.current
       if (!el) return
+      const activeTag = document.activeElement?.tagName
+      if (activeTag === 'TEXTAREA' || activeTag === 'INPUT') return
       const focusInside = !!document.activeElement && el.contains(document.activeElement)
       if (!focusInside && !mouseInsideRef.current) return
       let imageFiles: File[] = []
@@ -229,6 +258,29 @@ export function NotebookPage({
         e.preventDefault()
         handledPasteAtRef.current = Date.now()
         insertRef.current(imageFiles, mousePosRef.current)
+        return
+      }
+
+      const text = e.clipboardData?.getData('text')
+      if (text && text.trim()) {
+        e.preventDefault()
+        handledPasteAtRef.current = Date.now()
+        const isLong = text.length > 40 || text.includes('\n')
+        const targetW = isLong ? FULL_TEXTBOX_WIDTH : DEFAULT_TEXTBOX_WIDTH
+        const anchor = mousePosRef.current || { x: 80, y: 120 }
+        const newX = Math.max(16, Math.min(PAGE_WIDTH - 120, Math.round(anchor.x)))
+        const newY = Math.max(16, Math.min(PAGE_HEIGHT - 60, Math.round(anchor.y)))
+        const newBox: TextBoxData = {
+          id: `tb_${page.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          x: newX,
+          y: newY,
+          width: Math.min(targetW, PAGE_WIDTH - newX - 20),
+          content: text,
+          isEditing: false,
+        }
+        onAddTextBox(page.id, newBox)
+        onSelectTextBox(newBox.id)
+        clearCanvasSelection()
       }
     }
     window.addEventListener('paste', handleWindowPaste)
@@ -295,7 +347,7 @@ export function NotebookPage({
       id: `tb_${page.id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       x: newX,
       y: newY,
-      width: Math.min(520, PAGE_WIDTH - newX - 20),
+      width: Math.min(DEFAULT_TEXTBOX_WIDTH, PAGE_WIDTH - newX - 20),
       content: '',
       isEditing: true,
     }
@@ -344,9 +396,6 @@ export function NotebookPage({
           e.target.value = ''
         }}
       />
-
-      {/* Red vertical margin line for ruled notebook paper */}
-      {page.pattern === 'ruled' && <div className="notebook-margin-line" />}
 
       {/* Top Header line */}
       <div className="notebook-header-line" />

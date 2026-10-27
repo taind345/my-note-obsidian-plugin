@@ -177,6 +177,7 @@
 
 /* Vertical Pink/Red Margin line like real lined paper */
 .notebook-margin-line {
+  display: none !important;
   position: absolute;
   top: 0;
   bottom: 0;

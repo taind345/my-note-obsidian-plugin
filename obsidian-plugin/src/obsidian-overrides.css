@@ -306,6 +306,75 @@
   transform: scale(1.2) !important;
 }
 
+/* Font Menu Popover trong MiniToolbar */
+.mybook-obsidian-host .mini-font-popover-wrap {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-popover {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  min-width: 180px !important;
+  background: var(--background-primary, #ffffff) !important;
+  border: 1px solid var(--background-modifier-border, #cbd5e1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+  padding: 4px !important;
+  z-index: 100 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: fadeInDown 0.12s ease-out !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-title {
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  color: var(--text-muted, #94a3b8) !important;
+  padding: 4px 8px 2px 8px !important;
+  user-select: none !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 6px 10px !important;
+  border-radius: 5px !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  color: var(--text-normal, #1e293b) !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: all 0.1s ease !important;
+  white-space: nowrap !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-item:hover {
+  background: var(--background-modifier-hover, #f1f5f9) !important;
+  color: var(--text-normal, #0f172a) !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-item.selected {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--primary-color, #2563eb) !important;
+  font-weight: 600 !important;
+}
+
+.mybook-obsidian-host .mini-font-menu-check {
+  color: var(--primary-color, #2563eb) !important;
+  margin-left: 8px !important;
+  flex-shrink: 0 !important;
+}
+
 /* Cụm Actions Thêm trang & Xuất PDF */
 .mini-actions-group {
   display: flex;

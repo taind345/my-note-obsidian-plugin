@@ -183,7 +183,13 @@ export default function App() {
   const [isFlipping, setIsFlipping] = useState(false)
   const [flipDirection, setFlipDirection] = useState<'next' | 'prev'>('next')
   const [flipPhase, setFlipPhase] = useState<'closing' | 'opening' | null>(null)
-  const [fontFamily, setFontFamily] = useState('cascadia')
+  const [fontFamily, setFontFamily] = useState(() => {
+    try {
+      return localStorage.getItem('mybook:font_family') || 'cascadia'
+    } catch {
+      return 'cascadia'
+    }
+  })
   // Font riêng cho markdown / code (mặc định Cascadia, lưu localStorage)
   const [mdFont, setMdFont] = useState(() => loadFont('markdown'))
   const [codeFont, setCodeFont] = useState(() => loadFont('code'))
@@ -450,7 +456,8 @@ export default function App() {
         markPageDirty(pageId, updated)
         return updated
       })
-      setSelectedDrawingIds([elem.id])
+      // Không tự động chọn nét vừa vẽ xong; tránh việc đổi màu/cỡ sau đó làm biến đổi nét vừa vẽ
+      setSelectedDrawingIds([])
       setSelectedImageIds([])
     },
     [pushHistory, markPageDirty]
@@ -677,7 +684,7 @@ export default function App() {
   const handleChangeStrokeColor = useCallback(
     (color: string) => {
       setStrokeColor(color)
-      if (selectedDrawingIds.length > 0) {
+      if (activeTool === 'select' && selectedDrawingIds.length > 0) {
         for (const p of pages) {
           const hits = p.drawings.filter((d) => selectedDrawingIds.includes(d.id))
           if (hits.length > 0) {
@@ -687,13 +694,13 @@ export default function App() {
         }
       }
     },
-    [selectedDrawingIds, pages, handleUpdateDrawingElement]
+    [activeTool, selectedDrawingIds, pages, handleUpdateDrawingElement]
   )
 
   const handleChangeStrokeWidth = useCallback(
     (width: number) => {
       setStrokeWidth(width)
-      if (selectedDrawingIds.length > 0) {
+      if (activeTool === 'select' && selectedDrawingIds.length > 0) {
         for (const p of pages) {
           const hits = p.drawings.filter((d) => selectedDrawingIds.includes(d.id))
           if (hits.length > 0) {
@@ -703,7 +710,7 @@ export default function App() {
         }
       }
     },
-    [selectedDrawingIds, pages, handleUpdateDrawingElement]
+    [activeTool, selectedDrawingIds, pages, handleUpdateDrawingElement]
   )
 
   // 6. Fixed 2-Page Spread Navigation
@@ -1435,6 +1442,9 @@ export default function App() {
   // Đổi font vở (đồng bộ meta + tab) — tách từ inline trong toolbar
   const handleChangeMynoteFont = (font: string) => {
     setFontFamily(font)
+    try {
+      localStorage.setItem('mybook:font_family', font)
+    } catch {}
     if (meta) {
       const updatedMeta: NotebookMetadata = {
         ...meta,

@@ -99,7 +99,7 @@ export function SplitMynotePane({
 
   const addDrawing = (pageId: string, elem: DrawingElement) => {
     updPage(pageId, (p) => ({ ...p, drawings: [...p.drawings, elem] }))
-    setSelDraw([elem.id])
+    setSelDraw([])
   }
   const updateDrawing = (pageId: string, elemId: string, u: Partial<DrawingElement>) => {
     updPage(pageId, (p) => ({

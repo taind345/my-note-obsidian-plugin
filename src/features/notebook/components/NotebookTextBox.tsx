@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from '@/shared/lib/lineSnap'
+import { PAGE_WIDTH, PAGE_HEIGHT, displayScale, DEFAULT_TEXTBOX_WIDTH, FULL_TEXTBOX_WIDTH } from '@/shared/lib/lineSnap'
 import { renderMarkdown } from '@/shared/lib/markdown'
 import { debounce } from '@/shared/lib/debounce'
 import { GripVertical, Lock, Unlock, Trash2, Copy, Frame } from 'lucide-react'
@@ -92,13 +92,19 @@ function NotebookTextBoxInner({
     }
   }, [singleClickEdits, isEditing])
 
-  // Auto-focus and adjust height on entering edit mode
+  // Auto-focus and adjust height on entering edit mode or when width changes
   useEffect(() => {
     if (isEditing && textareaRef.current && !isLocked) {
       textareaRef.current.focus()
       adjustTextareaHeight()
     }
   }, [isEditing, isLocked])
+
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      adjustTextareaHeight()
+    }
+  }, [width, isEditing])
 
   // Close context menu on outside click
   useEffect(() => {
@@ -130,8 +136,26 @@ function NotebookTextBoxInner({
     }, 200)
   ).current
 
+  // Tự động mở rộng sang kích thước chuẩn (520px) nếu dán văn bản dài
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = e.clipboardData?.getData('text')
+    if (text && (text.length > 40 || text.includes('\n'))) {
+      const fullWidth = Math.min(FULL_TEXTBOX_WIDTH, PAGE_WIDTH - dragPos.x - 20)
+      if (width < fullWidth) {
+        onUpdate(id, { width: fullWidth })
+      }
+    }
+  }
+
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
+    // Nhận biết nếu có đoạn văn bản dài được chèn/paste vào box đang ở kích thước hẹp
+    if (val.length - rawText.length > 40 || (val.length > 50 && width <= DEFAULT_TEXTBOX_WIDTH)) {
+      const fullWidth = Math.min(FULL_TEXTBOX_WIDTH, PAGE_WIDTH - dragPos.x - 20)
+      if (width < fullWidth) {
+        onUpdate(id, { width: fullWidth })
+      }
+    }
     setRawText(val)
     adjustTextareaHeight()
     debouncedParse(val)
@@ -446,7 +470,7 @@ function NotebookTextBoxInner({
 
     const onPointerMove = (moveEv: PointerEvent) => {
       const dx = (moveEv.clientX - startX) / scale
-      const newWidth = Math.max(160, Math.min(PAGE_WIDTH - dragPos.x - 20, startWidth + dx))
+      const newWidth = Math.max(120, Math.min(PAGE_WIDTH - dragPos.x - 20, startWidth + dx))
       onUpdate(id, { width: newWidth })
     }
 
@@ -470,7 +494,11 @@ function NotebookTextBoxInner({
         top: `${dragPos.y}px`,
         width: `${width}px`,
         fontFamily:
-          fontFamily === 'handwriting'
+          fontFamily === 'dfvn-excalidraw'
+            ? 'var(--font-dfvn-excalidraw)'
+            : fontFamily === 'custom'
+            ? 'var(--font-custom)'
+            : fontFamily === 'handwriting'
             ? 'var(--font-handwriting)'
             : fontFamily === 'serif'
             ? 'var(--font-serif)'
@@ -517,6 +545,7 @@ function NotebookTextBoxInner({
             value={rawText}
             onChange={handleTextChange}
             onKeyDown={handleTextareaKeyDown}
+            onPaste={handlePaste}
             placeholder="Type notes in Markdown here (# Heading, - [ ] Todo, [[Note]], - list)..."
             style={{
               lineHeight: `${linePitch}px`,

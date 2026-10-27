@@ -4,6 +4,7 @@ import type {
   PageData,
   NotebookMetadata,
   ToolType,
+  PaperPattern,
   DrawingElement,
   TextBoxData,
   PageImageData,
@@ -12,6 +13,7 @@ import { NotebookPage } from '@/features/notebook/components/NotebookPage'
 import { ExportPdfModal } from '@/shared/ui/ExportPdfModal'
 import { debounce } from '@/shared/lib/debounce'
 import { MiniToolbar } from './MiniToolbar'
+import type { Language } from './i18n'
 
 /** Đo rộng khung cuộn chứa nó (mount cùng scroll, luôn tươi) */
 function ScrollWidthReporter({ onWidth }: { onWidth: (w: number) => void }) {
@@ -40,6 +42,8 @@ interface MyBookNotebookProps {
   initialPages: PageData[]
   filePath: string
   fileBasename: string
+  defaultFontFamily?: string
+  language?: Language
   onSave: (meta: NotebookMetadata, pages: PageData[]) => Promise<void>
   onSavePdf: (data: ArrayBuffer, filename: string) => Promise<void>
   onNavigateLink: (target: string) => void
@@ -81,13 +85,88 @@ export class MyBookErrorBoundary extends React.Component<
     return this.props.children
   }
 }
-export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasename, onSave, onSavePdf, onNavigateLink }: MyBookNotebookProps) {
+export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasename, defaultFontFamily, language, onSave, onSavePdf, onNavigateLink }: MyBookNotebookProps) {
   const [meta, setMeta] = useState<NotebookMetadata>(initialMeta)
   const [pages, setPages] = useState<PageData[]>(initialPages)
+  const [currentLang, setCurrentLang] = useState<Language>(() => {
+    try {
+      const stored = localStorage.getItem('mybook:language') as Language
+      if (stored === 'en' || stored === 'vi') return stored
+    } catch {}
+    return language || 'en'
+  })
+
+  useEffect(() => {
+    if (language) setCurrentLang(language)
+  }, [language])
+
+  useEffect(() => {
+    const handleLang = (e: Event) => {
+      const custom = e as CustomEvent<{ language: Language }>
+      if (custom.detail?.language) {
+        setCurrentLang(custom.detail.language)
+      }
+    }
+    window.addEventListener('mybook:language-change', handleLang)
+    return () => window.removeEventListener('mybook:language-change', handleLang)
+  }, [])
+
+  const [fontFamily, setFontFamily] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('mybook:font_family')
+      return initialMeta.settings?.fontFamily || stored || defaultFontFamily || 'cascadia'
+    } catch {
+      return initialMeta.settings?.fontFamily || defaultFontFamily || 'cascadia'
+    }
+  })
   const [zoom, setZoom] = useState(1.0)
   const [activeTool, setActiveTool] = useState<ToolType>('select')
-  const [strokeColor, setStrokeColor] = useState('#1e293b')
-  const [strokeWidth, setStrokeWidth] = useState(2.8)
+
+  // Cấu hình ngòi & màu riêng biệt cho Bút bi (pen) và Bút dạ quang (highlighter)
+  const [penColor, setPenColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('mybook:pen_color') || '#1e293b'
+    } catch {
+      return '#1e293b'
+    }
+  })
+  const [penWidth, setPenWidth] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('mybook:pen_width')
+      const n = v ? parseFloat(v) : NaN
+      return isNaN(n) ? 2.8 : n
+    } catch {
+      return 2.8
+    }
+  })
+  const [highlighterColor, setHighlighterColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('mybook:highlighter_color') || '#eab308'
+    } catch {
+      return '#eab308'
+    }
+  })
+  const [highlighterWidth, setHighlighterWidth] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem('mybook:highlighter_width')
+      const n = v ? parseFloat(v) : NaN
+      return isNaN(n) ? 10 : n
+    } catch {
+      return 10
+    }
+  })
+
+  const penColorRef = useRef(penColor)
+  penColorRef.current = penColor
+  const penWidthRef = useRef(penWidth)
+  penWidthRef.current = penWidth
+  const highlighterColorRef = useRef(highlighterColor)
+  highlighterColorRef.current = highlighterColor
+  const highlighterWidthRef = useRef(highlighterWidth)
+  highlighterWidthRef.current = highlighterWidth
+
+  const [strokeColor, setStrokeColor] = useState<string>(penColor)
+  const [strokeWidth, setStrokeWidth] = useState<number>(penWidth)
   const [isToolLocked, setIsToolLocked] = useState(false)
   const [savedState, setSavedState] = useState<'saved' | 'dirty'>('saved')
   const [showExport, setShowExport] = useState(false)
@@ -333,6 +412,23 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     }
   }, [cancelKeyScroll])
 
+  const handleSelectTool = useCallback((t: ToolType) => {
+    setActiveTool(t)
+    // Khi đổi công cụ vẽ, bỏ vùng chọn cũ để không vô tình sửa nét cũ
+    if (t !== 'select') {
+      setSelDraw([])
+      setSelText([])
+      setSelImg([])
+    }
+    if (t === 'pen') {
+      setStrokeColor(penColorRef.current)
+      setStrokeWidth(penWidthRef.current)
+    } else if (t === 'highlighter') {
+      setStrokeColor(highlighterColorRef.current)
+      setStrokeWidth(highlighterWidthRef.current)
+    }
+  }, [])
+
   // Phím tắt: Undo/Redo, đổi tool 1-9, và cuộn trang mượt bằng phím mũi tên
   const TOOL_ORDER: ToolType[] = ['select', 'rect', 'circle', 'arrow', 'line', 'pen', 'highlighter', 'text', 'eraser']
   useEffect(() => {
@@ -358,7 +454,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
         const tool = TOOL_ORDER[Number(e.key) - 1]
         if (tool) {
           e.preventDefault()
-          setActiveTool(tool)
+          handleSelectTool(tool)
         }
         return
       }
@@ -425,7 +521,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [handleUndo, handleRedo, getScroller, queueSmoothScroll])
+  }, [handleUndo, handleRedo, getScroller, queueSmoothScroll, handleSelectTool])
 
   // --- TextBox ---
   const addTextBox = (pageId: string, box: TextBoxData) => {
@@ -499,7 +595,8 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
   // --- Drawing ---
   const addDrawing = (pageId: string, elem: DrawingElement) => {
     mutatePage(pageId, (p) => ({ ...p, drawings: [...p.drawings, elem] }))
-    setSelDraw([elem.id])
+    // Không tự động chọn nét vừa vẽ xong; tránh việc đổi màu/cỡ bút sau đó làm biến đổi nét vừa vẽ
+    setSelDraw([])
     setSelText([])
     setSelImg([])
   }
@@ -576,9 +673,37 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     mutatePage(pageId, (p) => ({ ...p, images: next }))
   }
 
+  // --- Paper Pattern ---
+  const currentPattern: PaperPattern = pages[0]?.pattern || meta.settings.defaultPattern || 'ruled'
+
+  const handleChangePattern = (newPattern: PaperPattern) => {
+    pushHistory(pages, meta.pageIds)
+    const nextPages = pages.map((p) => ({ ...p, pattern: newPattern, updatedAt: Date.now() }))
+    setPages(nextPages)
+    setMeta((m) => ({
+      ...m,
+      settings: { ...m.settings, defaultPattern: newPattern, pattern: newPattern },
+      updatedAt: Date.now(),
+    }))
+    setSavedState('dirty')
+  }
+
+  const handleFontChange = (newFont: string) => {
+    setFontFamily(newFont)
+    try {
+      localStorage.setItem('mybook:font_family', newFont)
+    } catch {}
+    setMeta((m) => ({
+      ...m,
+      settings: { ...m.settings, fontFamily: newFont },
+      updatedAt: Date.now(),
+    }))
+    setSavedState('dirty')
+  }
+
   // --- Pages ---
   const addPage = () => {
-    const lastPattern = pages[pages.length - 1]?.pattern || 'ruled'
+    const lastPattern = currentPattern || pages[pages.length - 1]?.pattern || 'ruled'
     const newPage: PageData = {
       id: `page_${Date.now()}`,
       pageNumber: pages.length + 1,
@@ -596,6 +721,57 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
     })
   }
 
+  // --- Color & Width Handling ---
+  const handleChangeColor = (c: string) => {
+    setStrokeColor(c)
+    if (activeTool === 'pen') {
+      setPenColor(c)
+      penColorRef.current = c
+      try { localStorage.setItem('mybook:pen_color', c) } catch {}
+    } else if (activeTool === 'highlighter') {
+      setHighlighterColor(c)
+      highlighterColorRef.current = c
+      try { localStorage.setItem('mybook:highlighter_color', c) } catch {}
+    }
+
+    // CHỈ sửa nét vẽ đã có khi đang ở chế độ 'select' và có nét đang được chọn
+    if (activeTool === 'select' && selDraw.length > 0) {
+      for (const p of pages) {
+        const hits = p.drawings.filter((d) => selDraw.includes(d.id))
+        if (hits.length > 0) {
+          for (const h of hits) {
+            updateDrawing(p.id, h.id, { color: c })
+          }
+        }
+      }
+    }
+  }
+
+  const handleChangeWidth = (w: number) => {
+    setStrokeWidth(w)
+    if (activeTool === 'pen') {
+      setPenWidth(w)
+      penWidthRef.current = w
+      try { localStorage.setItem('mybook:pen_width', String(w)) } catch {}
+    } else if (activeTool === 'highlighter') {
+      setHighlighterWidth(w)
+      highlighterWidthRef.current = w
+      try { localStorage.setItem('mybook:highlighter_width', String(w)) } catch {}
+    }
+
+    // CHỈ sửa nét vẽ đã có khi đang ở chế độ 'select' và có nét đang được chọn
+    if (activeTool === 'select' && selDraw.length > 0) {
+      for (const p of pages) {
+        const hits = p.drawings.filter((d) => selDraw.includes(d.id))
+        if (hits.length > 0) {
+          for (const h of hits) {
+            updateDrawing(p.id, h.id, { strokeWidth: w })
+          }
+        }
+      }
+    }
+  }
+
   return (
     <div
       ref={hostRef}
@@ -606,39 +782,22 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
           - Obsidian cuộn cả view (chuỗi height:100% gãy, khung trong không cuộn)
             → sticky dính theo scroll ngoài, không trôi mất */}
       <MiniToolbar
-          activeTool={activeTool}
+        language={currentLang}
+        activeTool={activeTool}
         strokeColor={strokeColor}
         strokeWidth={strokeWidth}
         isToolLocked={isToolLocked}
         canUndo={undoStack.current.length > 0}
         canRedo={redoStack.current.length > 0}
         savedState={savedState}
-        onSelectTool={setActiveTool}
+        pattern={currentPattern}
+        onChangePattern={handleChangePattern}
+        fontFamily={fontFamily}
+        onChangeFontFamily={handleFontChange}
+        onSelectTool={handleSelectTool}
         onToggleLock={() => setIsToolLocked((v) => !v)}
-        onChangeColor={(c) => {
-          setStrokeColor(c)
-          const primary = selDraw[0]
-          if (primary) {
-            for (const p of pages) {
-              if (p.drawings.some((d) => d.id === primary)) {
-                updateDrawing(p.id, primary, { color: c })
-                break
-              }
-            }
-          }
-        }}
-        onChangeWidth={(w) => {
-          setStrokeWidth(w)
-          const primary = selDraw[0]
-          if (primary) {
-            for (const p of pages) {
-              if (p.drawings.some((d) => d.id === primary)) {
-                updateDrawing(p.id, primary, { strokeWidth: w })
-                break
-              }
-            }
-          }
-        }}
+        onChangeColor={handleChangeColor}
+        onChangeWidth={handleChangeWidth}
         onUndo={handleUndo}
         onRedo={handleRedo}
         zoomLabel={`${Math.round(zoom * 100)}%`}
@@ -672,7 +831,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
                 linePitch={linePitch}
                 selectedTextBoxIds={selText}
                 selectedElementIds={selDraw}
-                fontFamily="cascadia"
+                fontFamily={fontFamily}
                 isToolLocked={isToolLocked}
                 handDrawnStyle={true}
                 canvasPixelScale={zoom}
@@ -708,7 +867,7 @@ export function MyBookNotebook({ initialMeta, initialPages, filePath, fileBasena
                 onDuplicateImage={duplicateImage}
                 onReorderImage={reorderImage}
                 onAutoSwitchToSelect={() => {
-                  if (!isToolLocked) setActiveTool('select')
+                  if (!isToolLocked) handleSelectTool('select')
                 }}
                 onNavigateLink={onNavigateLink}
               />

@@ -383,10 +383,12 @@ export const HeaderToolbar = memo(function HeaderToolbar({
           title="Font chữ vở viết"
         >
           <option value="cascadia">Cascadia</option>
-          <option value="handwriting">Comic</option>
+          <option value="dfvn-excalidraw">DFVN Excalidraw</option>
+          <option value="handwriting">Chữ viết tay</option>
           <option value="sans">Sans</option>
           <option value="mono">Mono</option>
           <option value="serif">Serif</option>
+          <option value="custom">Tùy chọn (Custom)</option>
         </select>
 
         {/* View Mode Dropdown */}

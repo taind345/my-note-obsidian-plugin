@@ -1,6 +1,6 @@
 import rough from 'roughjs'
 import type { PageData } from '@/shared/types/notebook'
-import { renderMarkdown } from '@/shared/lib/markdown'
+import { renderMarkdown, resolveAssetUrl } from '@/shared/lib/markdown'
 import { drawSmoothStroke, drawArrow } from '@/shared/lib/smoothing'
 import { getElementSeed } from '@/features/notebook/lib/elementSeed'
 
@@ -41,13 +41,6 @@ export async function renderOffscreenPageSheet(
   sheet.style.height = '1100px'
   sheet.style.position = 'relative'
   sheet.style.backgroundColor = '#ffffff'
-
-  // Add margin line
-  if (page.pattern === 'ruled') {
-    const marginLine = document.createElement('div')
-    marginLine.className = 'notebook-margin-line'
-    sheet.appendChild(marginLine)
-  }
 
   // Render text boxes
   for (const box of page.textBoxes) {
@@ -137,12 +130,13 @@ export async function renderOffscreenPageSheet(
   // Render pasted images (dataURL/vault URL) đúng tọa độ
   for (const img of page.images ?? []) {
     const el = document.createElement('img')
-    el.src = img.src
+    el.src = resolveAssetUrl(img.src)
     el.style.position = 'absolute'
     el.style.left = `${img.x}px`
     el.style.top = `${img.y}px`
     el.style.width = `${img.width}px`
     el.style.height = `${img.height}px`
+    el.style.objectFit = 'contain'
     el.style.zIndex = '3'
     sheet.appendChild(el)
   }

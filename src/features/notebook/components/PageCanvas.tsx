@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import rough from 'roughjs'
 import type { ToolType, DrawingElement, Point, TextBoxData, PageImageData } from '@/shared/types/notebook'
 import { drawSmoothStroke } from '@/shared/lib/smoothing'
-import { PAGE_WIDTH, PAGE_HEIGHT, displayScale } from '@/shared/lib/lineSnap'
+import { PAGE_WIDTH, PAGE_HEIGHT, displayScale, DEFAULT_TEXTBOX_WIDTH } from '@/shared/lib/lineSnap'
 import { canvasBackingScale } from '../lib/canvasResolution'
 import { getElementSeed } from '../lib/elementSeed'
 import { StrokeStream } from '../lib/strokeStream'
@@ -448,9 +448,10 @@ export function PageCanvas({
   const canvasScaleNow = (): number =>
     displayScale(activeCanvasRef.current?.getBoundingClientRect(), PAGE_WIDTH)
 
-  // Hit test for element selection
+  // Hit test for element selection (ngưỡng chọn chuẩn theo zoom để không bị quá nhạy/khó trúng)
   const hitTestElement = (point: Point): DrawingElement | null => {
-    const threshold = 18
+    const scale = canvasScaleNow()
+    const threshold = Math.max(12, Math.round(18 / Math.max(0.3, scale)))
 
     for (let i = elements.length - 1; i >= 0; i--) {
       const elem = elements[i]
@@ -952,18 +953,14 @@ export function PageCanvas({
         marqueeStartRef.current = null
         setMarquee(null)
         const end = getCanvasCoords(e)
-        // Chuẩn hoá theo zoom (workspace scale) để so khớp đúng với bounds dữ liệu
+        // start và end đều từ getCanvasCoords nên ĐÃ ở toạ độ dữ liệu trang (0..800, 0..1100).
+        // KHÔNG chia scale lần 2 khiến vùng chọn bị co nhỏ lệch chỗ khi zoom!
         const canvasRect = activeCanvasRef.current?.getBoundingClientRect()
         const scale =
           canvasRect && canvasRect.width > 0 ? canvasRect.width / PAGE_WIDTH : 1
         if (start) {
           const rawRect = normalizeRect(start.x, start.y, end.x, end.y)
-          const rect = {
-            minX: rawRect.minX / scale,
-            minY: rawRect.minY / scale,
-            maxX: rawRect.maxX / scale,
-            maxY: rawRect.maxY / scale,
-          }
+          const rect = rawRect
           if (isClickRect(rawRect)) {
             if (!marqueeAdditiveRef.current) clearAllSelection()
           } else {
@@ -1050,14 +1047,14 @@ export function PageCanvas({
     if (stream) {
       for (const p of pendingTail) stream.push(p)
     }
-    // Kẹp release teleport: nhấc bút mà tọa độ nhảy xa bất thường so với điểm
-    // tươi nhất đã thấy (>150px/event là teleport, flick tay nhanh nhất cũng dưới)
-    // thì giữ điểm cũ — chống gai nhọn bắn ra chỗ không vẽ (ngón lạ/OS glitch).
+    // Kẹp release teleport: chỉ áp dụng cho nét vẽ tay (pen/highlighter) khi nhấc bút
+    // mà tọa độ nhảy xa bất thường so với điểm tươi nhất đã thấy (>150px).
+    // Tuyệt đối KHÔNG áp dụng cho shape (rect, circle, line, arrow) vì hình vẽ có thể kéo to > 150px!
     const anchorPt = isFreehand
       ? stream?.lastAcceptedPoint() ?? sp
       : (pendingTail[pendingTail.length - 1] ?? sp)
     const endPoint =
-      Math.hypot(rawEnd.x - anchorPt.x, rawEnd.y - anchorPt.y) > MAX_RELEASE_JUMP_PX
+      isFreehand && Math.hypot(rawEnd.x - anchorPt.x, rawEnd.y - anchorPt.y) > MAX_RELEASE_JUMP_PX
         ? { ...anchorPt }
         : rawEnd
     const elemId = `elem_${pageId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
@@ -1461,7 +1458,7 @@ export function PageCanvas({
           id: `tb_${pageId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           x: Math.max(16, Math.min(PAGE_WIDTH - 240, Math.round(point.x))),
           y: Math.max(16, Math.min(PAGE_HEIGHT - 60, Math.round(point.y))),
-          width: Math.min(520, PAGE_WIDTH - point.x - 20),
+          width: Math.min(DEFAULT_TEXTBOX_WIDTH, PAGE_WIDTH - point.x - 20),
           content: '',
           isEditing: true,
         })

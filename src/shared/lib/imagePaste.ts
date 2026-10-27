@@ -1,8 +1,21 @@
 import type { PageImageData } from '@/shared/types/notebook'
 import { PAGE_WIDTH, PAGE_HEIGHT } from './lineSnap'
+import { resolveAssetUrl } from './markdown'
 
 export const MAX_PASTE_IMAGE_WIDTH = 520
 export const MAX_PASTE_IMAGE_HEIGHT = 420
+
+export type ImageAttachmentSaver = (file: File) => Promise<{ src: string; name: string }>
+
+let attachmentSaver: ImageAttachmentSaver | null = null
+
+/**
+ * Hook cho phép host (Obsidian plugin / desktop) lưu ảnh đính kèm ra file vật lý trong vault
+ * thay vì nhúng Base64 khổng lồ vào file markdown.
+ */
+export function setImageAttachmentSaver(saver: ImageAttachmentSaver | null): void {
+  attachmentSaver = saver
+}
 
 export function fileToDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -42,8 +55,25 @@ export async function fileToPageImage(
   cascadeIndex = 0,
   anchor?: { x: number; y: number } | null
 ): Promise<PageImageData> {
-  const src = await fileToDataURL(file)
-  const natural = await getImageNaturalSize(src)
+  let src: string
+  let fileName = file.name || 'pasted-image.png'
+
+  if (attachmentSaver) {
+    try {
+      const saved = await attachmentSaver(file)
+      src = saved.src
+      fileName = saved.name
+    } catch (err) {
+      console.warn('[MyBook] attachmentSaver failed, falling back to data URL:', err)
+      src = await fileToDataURL(file)
+    }
+  } else {
+    src = await fileToDataURL(file)
+  }
+
+  // Resolve sang URL hiển thị được để lấy kích thước tự nhiên chính xác của ảnh
+  const resolvedUrl = resolveAssetUrl(src)
+  const natural = await getImageNaturalSize(resolvedUrl)
   const fitted = fitSize(natural.width, natural.height)
 
   const offset = (cascadeIndex % 8) * 24
@@ -66,7 +96,7 @@ export async function fileToPageImage(
     width: fitted.width,
     height: fitted.height,
     src,
-    name: file.name || 'pasted-image.png',
+    name: fileName,
   }
 }
 

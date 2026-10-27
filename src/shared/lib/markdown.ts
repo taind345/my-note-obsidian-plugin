@@ -30,6 +30,27 @@ export function setAssetResolver(
 }
 
 /**
+ * Resolve đường dẫn ảnh (data:, http:, app:, hoặc tên file trong vault) thành URL hiển thị được.
+ */
+export function resolveAssetUrl(src: string): string {
+  if (!src) return ''
+  if (
+    src.startsWith('data:') ||
+    src.startsWith('http://') ||
+    src.startsWith('https://') ||
+    src.startsWith('app://') ||
+    src.startsWith('blob:')
+  ) {
+    return src
+  }
+  if (assetResolver) {
+    const resolved = assetResolver(src)
+    if (resolved) return resolved
+  }
+  return src
+}
+
+/**
  * Parses markdown to Obsidian-style HTML string with checkboxes,
  * wikilinks, embedded images, emerald green links, callouts, arrows, and code blocks.
  */

@@ -1,15 +1,17 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   MousePointer, Pen, Highlighter, Eraser, Minus, ArrowUpRight,
   Square, Circle, Type, Lock, Unlock, Plus, ZoomIn, ZoomOut, RotateCcw, RotateCw,
-  Maximize, Download, Check,
+  Maximize, Download, Check, AlignJustify, Grid,
 } from 'lucide-react'
-import type { ToolType } from '@/shared/types/notebook'
+import type { ToolType, PaperPattern } from '@/shared/types/notebook'
 import type { WidthDef } from '@/shared/lib/tools-config'
 import { ColorSwatches } from '@/shared/ui/ColorSwatches'
 import { WidthPicker } from '@/shared/ui/WidthPicker'
+import { type Language, getT } from './i18n'
 
 interface MiniToolbarProps {
+  language?: Language
   activeTool: ToolType
   strokeColor: string
   strokeWidth: number
@@ -17,6 +19,10 @@ interface MiniToolbarProps {
   canUndo: boolean
   canRedo: boolean
   savedState: 'saved' | 'dirty'
+  pattern: PaperPattern
+  onChangePattern: (p: PaperPattern) => void
+  fontFamily?: string
+  onChangeFontFamily?: (font: string) => void
   onSelectTool: (t: ToolType) => void
   onToggleLock: () => void
   onChangeColor: (c: string) => void
@@ -63,6 +69,30 @@ function toolBtn(
 
 /** Toolbar gọn cho plugin: Undo/Redo + Lock bên trái, tools + color ở giữa, Zoom capsule + actions bên phải */
 export function MiniToolbar(p: MiniToolbarProps) {
+  const [showFontMenu, setShowFontMenu] = useState(false)
+  const fontMenuRef = useRef<HTMLDivElement>(null)
+  const t = getT(p.language || 'en')
+
+  const fontOptions = [
+    { value: 'cascadia', label: t.fontCascadia, fontStyle: 'var(--font-cascadia)' },
+    { value: 'dfvn-excalidraw', label: t.fontDfvn, fontStyle: 'var(--font-dfvn-excalidraw)' },
+    { value: 'handwriting', label: t.fontHandwriting, fontStyle: 'var(--font-handwriting)' },
+    { value: 'sans', label: t.fontSans, fontStyle: 'var(--font-sans)' },
+    { value: 'serif', label: t.fontSerif, fontStyle: 'var(--font-serif)' },
+    { value: 'custom', label: t.fontCustom, fontStyle: 'var(--font-custom)' },
+  ]
+
+  useEffect(() => {
+    if (!showFontMenu) return
+    const onMouseDown = (e: MouseEvent) => {
+      if (fontMenuRef.current && !fontMenuRef.current.contains(e.target as Node)) {
+        setShowFontMenu(false)
+      }
+    }
+    window.addEventListener('mousedown', onMouseDown)
+    return () => window.removeEventListener('mousedown', onMouseDown)
+  }, [showFontMenu])
+
   return (
     <div className="header-center-tools mybook-mini-toolbar">
       {/* 1. BÊN TRÁI: Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) & Khóa tool */}
@@ -70,7 +100,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
         <button
           type="button"
           className="tool-button"
-          title="Hoàn tác (Ctrl+Z)"
+          title={t.undo}
           disabled={!p.canUndo}
           onClick={p.onUndo}
         >
@@ -79,7 +109,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
         <button
           type="button"
           className="tool-button"
-          title="Làm lại (Ctrl+Y)"
+          title={t.redo}
           disabled={!p.canRedo}
           onClick={p.onRedo}
         >
@@ -89,7 +119,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
         <button
           type="button"
           className={`tool-button lock-button ${p.isToolLocked ? 'active locked' : ''}`}
-          title={p.isToolLocked ? 'Mở khóa công cụ (Q)' : 'Khóa công cụ (giữ tool sau khi vẽ) (Q)'}
+          title={p.isToolLocked ? t.lockToolActive : t.lockToolInactive}
           onClick={p.onToggleLock}
         >
           {p.isToolLocked ? <Lock size={15} /> : <Unlock size={15} />}
@@ -99,15 +129,15 @@ export function MiniToolbar(p: MiniToolbarProps) {
       <div className="tool-divider" />
 
       {/* 2. CÔNG CỤ VẼ CƠ BẢN */}
-      {toolBtn(p.activeTool === 'select', 'Chọn / di chuyển (1)', () => p.onSelectTool('select'), <MousePointer size={15} />)}
-      {toolBtn(p.activeTool === 'rect', 'Hình chữ nhật (2)', () => p.onSelectTool('rect'), <Square size={15} />)}
-      {toolBtn(p.activeTool === 'circle', 'Hình tròn (3)', () => p.onSelectTool('circle'), <Circle size={15} />)}
-      {toolBtn(p.activeTool === 'arrow', 'Mũi tên (4)', () => p.onSelectTool('arrow'), <ArrowUpRight size={15} />)}
-      {toolBtn(p.activeTool === 'line', 'Đoạn thẳng (5)', () => p.onSelectTool('line'), <Minus size={15} />)}
-      {toolBtn(p.activeTool === 'pen', 'Bút viết (6)', () => p.onSelectTool('pen'), <Pen size={15} />)}
-      {toolBtn(p.activeTool === 'highlighter', 'Bút dạ quang (7)', () => p.onSelectTool('highlighter'), <Highlighter size={15} />)}
-      {toolBtn(p.activeTool === 'text', 'Hộp chữ (8)', () => p.onSelectTool('text'), <Type size={15} />)}
-      {toolBtn(p.activeTool === 'eraser', 'Tẩy (9)', () => p.onSelectTool('eraser'), <Eraser size={15} />)}
+      {toolBtn(p.activeTool === 'select', t.toolSelect, () => p.onSelectTool('select'), <MousePointer size={15} />)}
+      {toolBtn(p.activeTool === 'rect', t.toolRect, () => p.onSelectTool('rect'), <Square size={15} />)}
+      {toolBtn(p.activeTool === 'circle', t.toolCircle, () => p.onSelectTool('circle'), <Circle size={15} />)}
+      {toolBtn(p.activeTool === 'arrow', t.toolArrow, () => p.onSelectTool('arrow'), <ArrowUpRight size={15} />)}
+      {toolBtn(p.activeTool === 'line', t.toolLine, () => p.onSelectTool('line'), <Minus size={15} />)}
+      {toolBtn(p.activeTool === 'pen', t.toolPen, () => p.onSelectTool('pen'), <Pen size={15} />)}
+      {toolBtn(p.activeTool === 'highlighter', t.toolHighlighter, () => p.onSelectTool('highlighter'), <Highlighter size={15} />)}
+      {toolBtn(p.activeTool === 'text', t.toolText, () => p.onSelectTool('text'), <Type size={15} />)}
+      {toolBtn(p.activeTool === 'eraser', t.toolEraser, () => p.onSelectTool('eraser'), <Eraser size={15} />)}
 
       <div className="tool-divider" />
 
@@ -117,13 +147,68 @@ export function MiniToolbar(p: MiniToolbarProps) {
 
       <div className="tool-divider" />
 
-      {/* 4. BÊN PHẢI: Zoom Capsule + Actions (Thêm trang, PDF) + Autosave Status */}
+      {/* 4. CHUYỂN ĐỔI KIỂU GIẤY (Dòng kẻ ngang / Lưới ô vuông) */}
+      <div className="mini-pattern-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+        <button
+          type="button"
+          className={`tool-button ${p.pattern === 'ruled' ? 'active' : ''}`}
+          title={t.ruled}
+          onClick={() => p.onChangePattern('ruled')}
+        >
+          <AlignJustify size={15} />
+        </button>
+        <button
+          type="button"
+          className={`tool-button ${p.pattern === 'grid' ? 'active' : ''}`}
+          title={t.grid}
+          onClick={() => p.onChangePattern('grid')}
+        >
+          <Grid size={15} />
+        </button>
+
+        {p.onChangeFontFamily && (
+          <div className="mini-font-popover-wrap">
+            <button
+              type="button"
+              className={`tool-button ${showFontMenu ? 'active' : ''}`}
+              title={t.fontBtnTitle}
+              onClick={() => setShowFontMenu((v) => !v)}
+            >
+              <Type size={15} />
+            </button>
+
+            {showFontMenu && (
+              <div ref={fontMenuRef} className="mini-font-menu-popover">
+                <div className="mini-font-menu-title">{t.fontMenuTitle}</div>
+                {fontOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`mini-font-menu-item ${p.fontFamily === opt.value ? 'selected' : ''}`}
+                    onClick={() => {
+                      p.onChangeFontFamily?.(opt.value)
+                      setShowFontMenu(false)
+                    }}
+                  >
+                    <span style={{ fontFamily: opt.fontStyle }}>{opt.label}</span>
+                    {p.fontFamily === opt.value && <Check size={13} className="mini-font-menu-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="tool-divider" />
+
+      {/* 5. BÊN PHẢI: Zoom Capsule + Actions (Thêm trang, PDF) + Autosave Status */}
       <div className="mini-toolbar-right-group">
         <div className="mini-zoom-pill">
           <button
             type="button"
             className="mini-pill-btn"
-            title="Thu nhỏ"
+            title={t.zoomOut}
             onClick={p.onZoomOut}
           >
             <ZoomOut size={13} />
@@ -131,7 +216,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
           <button
             type="button"
             className="mini-zoom-label"
-            title="Mức zoom hiện tại (Click để đặt lại 100%)"
+            title={t.zoomReset}
             onClick={p.onResetZoom}
           >
             {p.zoomLabel}
@@ -139,7 +224,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
           <button
             type="button"
             className="mini-pill-btn"
-            title="Phóng to"
+            title={t.zoomIn}
             onClick={p.onZoomIn}
           >
             <ZoomIn size={13} />
@@ -148,7 +233,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
           <button
             type="button"
             className="mini-pill-btn"
-            title="Fit vừa khung xem"
+            title={t.fitZoom}
             onClick={p.onFitZoom}
           >
             <Maximize size={13} />
@@ -159,7 +244,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
           <button
             type="button"
             className="tool-button"
-            title="Thêm trang mới"
+            title={t.addPage}
             onClick={p.onAddPage}
           >
             <Plus size={15} />
@@ -167,7 +252,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
           <button
             type="button"
             className="tool-button"
-            title="Xuất vở ra PDF"
+            title={t.exportPdf}
             onClick={p.onExportPdf}
           >
             <Download size={15} />
@@ -176,7 +261,7 @@ export function MiniToolbar(p: MiniToolbarProps) {
 
         <div
           className={`mini-save-badge status-${p.savedState === 'dirty' ? 'dirty' : 'saved'}`}
-          title={p.savedState === 'dirty' ? 'Đang có thay đổi (chờ tự động lưu...)' : 'Đã lưu vào file'}
+          title={p.savedState === 'dirty' ? t.saving : t.saved}
         >
           {p.savedState === 'dirty' ? (
             <span className="mini-save-dot">●</span>

@@ -2,6 +2,7 @@ import React from 'react'
 import { Lock } from 'lucide-react'
 import type { PageImageData } from '@/shared/types/notebook'
 import { PAGE_WIDTH, PAGE_HEIGHT } from '@/shared/lib/lineSnap'
+import { resolveAssetUrl } from '@/shared/lib/markdown'
 
 interface PageImageLayerProps {
   pageId: string
@@ -46,16 +47,17 @@ function PageImageLayerInner({ pageId: _pageId, images }: PageImageLayerProps) {
           title={img.name || 'pasted image'}
         >
           <img
-            src={img.src}
+            src={resolveAssetUrl(img.src)}
             alt={img.name || 'pasted image'}
             draggable={false}
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'fill',
+              objectFit: 'contain',
               borderRadius: '5px',
               display: 'block',
               pointerEvents: 'none',
+              imageRendering: '-webkit-optimize-contrast',
             }}
           />
           {img.isLocked && (

@@ -1,4 +1,4 @@
-import { App, ItemView, Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian'
+import { App, ItemView, Notice, Plugin, PluginSettingTab, Setting, TFile, WorkspaceLeaf } from 'obsidian'
 import * as React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 // CSS app được bundle rồi scope vào .mybook-obsidian-host bởi scope-css.mjs
@@ -6,6 +6,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import './app.obsidian.css'
 import 'katex/dist/katex.min.css'
 import { setAssetResolver } from '@/shared/lib/markdown'
+import { setImageAttachmentSaver } from '@/shared/lib/imagePaste'
 import {
   exportNotebookToMarkdown,
   importNotebookFromMarkdown,
@@ -13,6 +14,28 @@ import {
 import { getEmptyNotebook } from '@/services/storage'
 import { MyBookNotebook, MyBookErrorBoundary } from './MyBookNotebook'
 import { around } from './around'
+import { type Language, getT } from './i18n'
+
+export interface MyBookSettings {
+  /** Ngôn ngữ hiển thị giao diện: 'en' (mặc định) | 'vi' */
+  language: Language
+  /** Thư mục lưu ảnh khi paste vào vở (để trống = dùng theo cài đặt mặc định của Obsidian) */
+  attachmentFolder: string
+  /** Phông chữ mặc định khi tạo vở mới: 'cascadia' | 'dfvn-excalidraw' | 'handwriting' | 'sans' | 'serif' | 'custom' */
+  defaultFontFamily: string
+  /** Đường dẫn file font tùy chọn trong vault (vd: 0_Excalidraw/font/DFVN-Excalifont.ttf) */
+  customFontPath: string
+  /** Tên phông chữ tùy chọn hiển thị */
+  customFontName: string
+}
+
+export const DEFAULT_SETTINGS: MyBookSettings = {
+  language: 'en',
+  attachmentFolder: '',
+  defaultFontFamily: 'cascadia',
+  customFontPath: '0_Excalidraw/font/DFVN-Excalifont.ttf',
+  customFontName: 'DFVN Excalifont',
+}
 
 export const MYBOOK_VIEW_TYPE = 'mybook-notebook'
 /** Đuôi file vở MyBook (giữ nguyên .md để Obsidian vẫn đọc text được) */
@@ -81,11 +104,29 @@ function findMyBookLeaves(app: App, filePath: string): WorkspaceLeaf[] {
 export default class MyBookPlugin extends Plugin {
   isLoaded = false
   forceOpenAsMarkdownPath: string | null = null
+  settings: MyBookSettings = DEFAULT_SETTINGS
+
+  async loadSettings(): Promise<void> {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings)
+  }
 
   async onload() {
     this.isLoaded = true
+    await this.loadSettings()
+    this.addSettingTab(new MyBookSettingTab(this.app, this))
+
+    // Nạp các font tùy chọn và font DFVN Excalifont từ Vault
+    await this.loadCustomFonts()
+
     // Ảnh ![[...]] trong textbox resolve qua Vault API (resource path của Obsidian)
     setAssetResolver((filename) => this.resolveVaultImage(filename))
+
+    // Đăng ký lưu ảnh dán vào Vault Attachment (tránh phình file .mynote.md)
+    setImageAttachmentSaver((file) => this.saveImageAttachment(file))
 
     this.registerView(MYBOOK_VIEW_TYPE, (leaf) => new MyBookView(leaf, this))
 
@@ -103,13 +144,16 @@ export default class MyBookPlugin extends Plugin {
       this.switchToMyBookAfterLoad()
     })
 
+    const t = getT(this.settings.language || 'en')
+
     // Menu chuột phải lên file vở: mở bằng MyBook hoặc xem Markdown thô
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file, _source, leaf) => {
         if (file instanceof TFile && isMyBookNote(this.app, file)) {
+          const tNow = getT(this.settings.language || 'en')
           menu.addItem((item) =>
             item
-              .setTitle('Mở bằng vở MyBook')
+              .setTitle(tNow.contextOpenMyBook)
               .setIcon('notebook-pen')
               .onClick(() => {
                 void this.openInMyBook(file)
@@ -117,7 +161,7 @@ export default class MyBookPlugin extends Plugin {
           )
           menu.addItem((item) =>
             item
-              .setTitle('Mở dạng Markdown thô')
+              .setTitle(tNow.contextOpenMarkdown)
               .setIcon('file-text')
               .onClick(async () => {
                 this.forceOpenAsMarkdownPath = file.path
@@ -133,13 +177,13 @@ export default class MyBookPlugin extends Plugin {
       })
     )
 
-    this.addRibbonIcon('notebook-pen', 'Mở vở MyBook mới', () => {
+    this.addRibbonIcon('notebook-pen', t.newNotebookRibbon, () => {
       void this.createAndOpenNotebook()
     })
 
     this.addCommand({
       id: 'mybook-new-notebook',
-      name: 'Tạo vở MyBook mới',
+      name: t.newNotebookCmd,
       callback: () => {
         void this.createAndOpenNotebook()
       },
@@ -147,7 +191,7 @@ export default class MyBookPlugin extends Plugin {
 
     this.addCommand({
       id: 'mybook-open-active',
-      name: 'Mở file đang xem bằng MyBook',
+      name: t.openActiveCmd,
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile()
         if (file && isMyBookNote(this.app, file)) {
@@ -160,7 +204,7 @@ export default class MyBookPlugin extends Plugin {
 
     this.addCommand({
       id: 'mybook-export-pdf',
-      name: 'Xuất vở đang mở ra PDF',
+      name: t.exportPdfCmd,
       checkCallback: (checking) => {
         const leaf = this.app.workspace.activeLeaf
         if (leaf?.view instanceof MyBookView) {
@@ -182,6 +226,143 @@ export default class MyBookPlugin extends Plugin {
   onunload() {
     this.isLoaded = false
     setAssetResolver(null)
+    setImageAttachmentSaver(null)
+  }
+
+  /**
+   * Lưu ảnh dán (pasted image) vào thư mục Attachment của Vault (theo chuẩn Obsidian / Excalidraw).
+   * Giúp file .mynote.md siêu nhẹ và load nhanh chóng, không bị phình to bởi chuỗi Base64.
+   */
+  async saveImageAttachment(file: File): Promise<{ src: string; name: string }> {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+
+    let ext = 'png'
+    if (file.type === 'image/jpeg' || file.type === 'image/jpg') ext = 'jpg'
+    else if (file.type === 'image/webp') ext = 'webp'
+    else if (file.type === 'image/gif') ext = 'gif'
+    else if (file.type === 'image/svg+xml') ext = 'svg'
+
+    const defaultName = `Pasted image ${timestamp}.${ext}`
+    let targetPath = ''
+
+    const customFolder = this.settings.attachmentFolder?.trim()
+    if (customFolder) {
+      const normalizedFolder = customFolder.replace(/^\/+|\/+$/g, '')
+      const folderExists = await this.app.vault.adapter.exists(normalizedFolder)
+      if (!folderExists) {
+        await this.app.vault.createFolder(normalizedFolder).catch(() => {})
+      }
+      let candidate = `${normalizedFolder}/${defaultName}`
+      let counter = 1
+      while (await this.app.vault.adapter.exists(candidate)) {
+        candidate = `${normalizedFolder}/Pasted image ${timestamp} ${counter}.${ext}`
+        counter++
+      }
+      targetPath = candidate
+    } else {
+      // Logic mặc định của Obsidian (hoạt động hệt như Excalidraw và Core Obsidian)
+      const activeFile = this.app.workspace.getActiveFile()
+      const sourcePath = activeFile instanceof TFile ? activeFile.path : ''
+      targetPath = await this.app.fileManager.getAvailablePathForAttachment(defaultName, sourcePath)
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const created = await this.app.vault.createBinary(targetPath, arrayBuffer)
+    return {
+      src: targetPath,
+      name: created.name,
+    }
+  }
+
+  /**
+   * Nạp font tùy chỉnh và DFVN Excalifont từ Vault vào Document Fonts
+   */
+  async loadCustomFonts(): Promise<void> {
+    const allFiles = this.app.vault.getFiles()
+
+    // 1. Luôn tìm và nạp font DFVN Excalifont
+    const dfvnCandidates = [
+      this.settings.customFontPath?.trim(),
+      '0_Excalidraw/font/DFVN-Excalifont.ttf',
+      '0_Excalidraw/font/DFVN-Excalifont.otf',
+    ].filter(Boolean) as string[]
+
+    let dfvnLoaded = false
+    for (const cand of dfvnCandidates) {
+      let f = this.app.vault.getAbstractFileByPath(cand)
+      if (!f) {
+        const base = cand.split('/').pop()?.toLowerCase() || ''
+        f = allFiles.find((file) => file.name.toLowerCase() === base) || null
+      }
+      if (f instanceof TFile) {
+        await this.registerFontFaceFromTFile(f, 'DFVN Excalifont')
+        await this.registerFontFaceFromTFile(f, 'DFVN-Excalifont')
+        dfvnLoaded = true
+        break
+      }
+    }
+
+    if (!dfvnLoaded) {
+      const autoHit = allFiles.find((f) => /dfvn.*excali/i.test(f.name))
+      if (autoHit instanceof TFile) {
+        await this.registerFontFaceFromTFile(autoHit, 'DFVN Excalifont')
+        await this.registerFontFaceFromTFile(autoHit, 'DFVN-Excalifont')
+      }
+    }
+
+    // 2. Nạp font tùy chọn nếu người dùng chỉ định đường dẫn riêng
+    const customPath = this.settings.customFontPath?.trim()
+    if (customPath) {
+      let f = this.app.vault.getAbstractFileByPath(customPath)
+      if (!f) {
+        const base = customPath.split('/').pop()?.toLowerCase() || ''
+        f = allFiles.find((file) => file.name.toLowerCase() === base) || null
+      }
+      if (f instanceof TFile) {
+        const familyName = this.settings.customFontName?.trim() || 'MyBookCustomFont'
+        await this.registerFontFaceFromTFile(f, familyName)
+        await this.registerFontFaceFromTFile(f, 'MyBookCustomFont')
+      }
+    }
+
+    // 3. Set biến CSS font tùy chọn
+    const fontName = this.settings.customFontName?.trim() || 'DFVN Excalifont'
+    document.documentElement.style.setProperty(
+      '--user-custom-font',
+      `'${fontName}', 'DFVN Excalifont', 'DFVN-Excalifont', sans-serif`
+    )
+  }
+
+  async registerFontFaceFromTFile(file: TFile, familyName: string): Promise<boolean> {
+    try {
+      const ext = file.extension.toLowerCase()
+      if (!['ttf', 'otf', 'woff', 'woff2'].includes(ext)) return false
+
+      const buffer = await this.app.vault.readBinary(file)
+      const mime =
+        ext === 'woff2'
+          ? 'font/woff2'
+          : ext === 'woff'
+          ? 'font/woff'
+          : ext === 'otf'
+          ? 'font/otf'
+          : 'font/ttf'
+      const blob = new Blob([buffer], { type: mime })
+      const fontUrl = URL.createObjectURL(blob)
+
+      const fontFace = new FontFace(familyName, `url("${fontUrl}")`, {
+        style: 'normal',
+        weight: 'normal',
+      })
+      await fontFace.load()
+      document.fonts.add(fontFace)
+      return true
+    } catch (err) {
+      console.warn('[MyBook] Failed to register fontFace:', familyName, err)
+      return false
+    }
   }
 
   /**
@@ -306,7 +487,15 @@ export default class MyBookPlugin extends Plugin {
         const name = `note_${n}`
         const fileName = `${dir}${name}.mynote.md`
         try {
-          const fresh = getEmptyNotebook(name, 'grid')
+          let defaultFont = this.settings.defaultFontFamily
+          try {
+            const stored = localStorage.getItem('mybook:font_family')
+            if (stored) defaultFont = stored
+          } catch {}
+          const fresh = getEmptyNotebook(name, 'ruled')
+          if (defaultFont) {
+            fresh.meta.settings.fontFamily = defaultFont
+          }
           const content = exportNotebookToMarkdown(fresh.meta, fresh.pages)
           const file = await this.app.vault.create(fileName, content)
           await this.openInMyBook(file as TFile)
@@ -530,10 +719,10 @@ class MyBookView extends ItemView {
     }
     const initialMeta = parsed
       ? parsed.meta
-      : getEmptyNotebook(file.basename, 'grid').meta
+      : getEmptyNotebook(file.basename, 'ruled').meta
     const initialPages = parsed
       ? parsed.pages
-      : getEmptyNotebook(file.basename, 'grid').pages
+      : getEmptyNotebook(file.basename, 'ruled').pages
 
     cancelLoading()
     container.empty()
@@ -549,6 +738,8 @@ class MyBookView extends ItemView {
         initialPages,
         filePath: path,
         fileBasename: file.basename,
+        defaultFontFamily: this.plugin.settings.defaultFontFamily,
+        language: this.plugin.settings.language || 'en',
         onSave: async (meta, pages) => {
           // Đọc path hiện tại lúc lưu (file có thể đã được đổi tên/di chuyển)
           const live = this.currentFilePath
@@ -595,5 +786,114 @@ class MyBookView extends ItemView {
     this.root = null
     this.currentFilePath = null
     this.loadingPath = null
+  }
+}
+
+class MyBookSettingTab extends PluginSettingTab {
+  plugin: MyBookPlugin
+
+  constructor(app: App, plugin: MyBookPlugin) {
+    super(app, plugin)
+    this.plugin = plugin
+  }
+
+  display(): void {
+    const { containerEl } = this
+    containerEl.empty()
+
+    const t = getT(this.plugin.settings.language || 'en')
+
+    containerEl.createEl('h2', { text: t.settingsTitle })
+
+    // --- Section 1: Ngôn ngữ hiển thị (Language) ---
+    containerEl.createEl('h3', { text: t.languageSection })
+
+    new Setting(containerEl)
+      .setName(t.languageName)
+      .setDesc(t.languageDesc)
+      .addDropdown((drop) =>
+        drop
+          .addOption('en', 'English (Default)')
+          .addOption('vi', 'Tiếng Việt')
+          .setValue(this.plugin.settings.language || 'en')
+          .onChange(async (val) => {
+            this.plugin.settings.language = val as Language
+            try {
+              localStorage.setItem('mybook:language', val)
+            } catch {}
+            await this.plugin.saveSettings()
+            window.dispatchEvent(new CustomEvent('mybook:language-change', { detail: { language: val } }))
+            this.display() // Tự động render lại toàn bộ tab theo ngôn ngữ mới
+          })
+      )
+
+    // --- Section 2: Thư mục lưu ảnh dán ---
+    containerEl.createEl('h3', { text: t.attachmentSection })
+
+    new Setting(containerEl)
+      .setName(t.attachmentFolderTitle)
+      .setDesc(t.attachmentFolderDesc)
+      .addText((text) =>
+        text
+          .setPlaceholder(t.attachmentFolderPlaceholder)
+          .setValue(this.plugin.settings.attachmentFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.attachmentFolder = value.trim()
+            await this.plugin.saveSettings()
+          })
+      )
+
+    // --- Section 3: Cài đặt phông chữ ---
+    containerEl.createEl('h3', { text: t.typographySection })
+
+    new Setting(containerEl)
+      .setName(t.defaultFontTitle)
+      .setDesc(t.defaultFontDesc)
+      .addDropdown((drop) =>
+        drop
+          .addOption('cascadia', t.fontCascadia)
+          .addOption('dfvn-excalidraw', t.fontDfvn)
+          .addOption('handwriting', t.fontHandwriting)
+          .addOption('sans', t.fontSans)
+          .addOption('serif', t.fontSerif)
+          .addOption('mono', t.fontMono)
+          .addOption('custom', t.fontCustom)
+          .setValue(this.plugin.settings.defaultFontFamily)
+          .onChange(async (val) => {
+            this.plugin.settings.defaultFontFamily = val
+            try {
+              localStorage.setItem('mybook:font_family', val)
+            } catch {}
+            await this.plugin.saveSettings()
+          })
+      )
+
+    new Setting(containerEl)
+      .setName(t.customFontPathTitle)
+      .setDesc(t.customFontPathDesc)
+      .addText((text) =>
+        text
+          .setPlaceholder('0_Excalidraw/font/DFVN-Excalifont.ttf')
+          .setValue(this.plugin.settings.customFontPath)
+          .onChange(async (val) => {
+            this.plugin.settings.customFontPath = val.trim()
+            await this.plugin.saveSettings()
+            await this.plugin.loadCustomFonts()
+          })
+      )
+
+    new Setting(containerEl)
+      .setName(t.customFontNameTitle)
+      .setDesc(t.customFontNameDesc)
+      .addText((text) =>
+        text
+          .setPlaceholder('DFVN Excalifont')
+          .setValue(this.plugin.settings.customFontName)
+          .onChange(async (val) => {
+            this.plugin.settings.customFontName = val.trim()
+            await this.plugin.saveSettings()
+            await this.plugin.loadCustomFonts()
+          })
+      )
   }
 }
